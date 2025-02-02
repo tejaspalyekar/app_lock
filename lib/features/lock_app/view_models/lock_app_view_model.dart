@@ -1,0 +1,95 @@
+import 'dart:io';
+import 'package:animated_snack_bar/animated_snack_bar.dart';
+import 'package:app_lock/config/app_navigator.dart';
+import 'package:app_lock/config/constants/app_constants.dart';
+import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
+import 'package:app_lock/utils/custom_snackbars.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_icon_snackbar/flutter_icon_snackbar.dart';
+
+class LockAppViewModel extends ChangeNotifier {
+  final TextEditingController _pinController = TextEditingController();
+  final TextEditingController _confirmPinController = TextEditingController();
+  int _activeStep = 0;
+  // bool get itemUploadingState => _isItemUploadLoading;
+  // Uint8List? get imageFilePath => _imageFile;
+
+  TextEditingController get pinController => _pinController;
+
+  TextEditingController get confirmPinController => _confirmPinController;
+  int get activeStep => _activeStep;
+
+  updateStepIndex(BuildContext context, bool isPinAlreadySet) {
+    if (!isPinAlreadySet) {
+      if (_activeStep == 1) {
+        validatePinCode(context);
+        _activeStep = _activeStep;
+      } else if (_activeStep == 0 &&
+          _pinController.text.length == pinCodeLength) {
+        _activeStep = _activeStep + 1;
+      } else {
+        CustomSnackBar().customAnimatedSnackBar(
+            "Invalid PIN",
+            "Please Enter a $pinCodeLength Digit PIN",
+            AnimatedSnackBarType.error,
+            context);
+      }
+    } else {
+      verifyEnteredPin(context);
+    }
+
+    notifyListeners();
+  }
+
+  verifyEnteredPin(BuildContext context) async {
+    String storedPin = await getPrefString(app_lock_pin) ?? "";
+    if (_pinController.text.length == pinCodeLength) {
+      if (_pinController.text == storedPin) {
+        pushReplacement(context, "/galleryScreen");
+        CustomSnackBar().customIconSnackBar(
+            "Welcome Back!!", context, SnackBarType.success);
+        _activeStep = 0;
+        _pinController.clear();
+        _confirmPinController.clear();
+        notifyListeners();
+        return true;
+      }
+    }
+    CustomSnackBar().customAnimatedSnackBar("Invalid PIN",
+        "Please enter valid pin code", AnimatedSnackBarType.error, context);
+    _activeStep = 0;
+    _pinController.clear();
+    _confirmPinController.clear();
+    notifyListeners();
+    return false;
+  }
+
+  validatePinCode(BuildContext context) async {
+    if (_pinController.text.length == pinCodeLength &&
+        _confirmPinController.text.length == pinCodeLength) {
+      if (_pinController.text == _confirmPinController.text) {
+        await setPrefBool(is_pin_set, true);
+        await setPrefString(app_lock_pin, _confirmPinController.text);
+        pushReplacement(context, "/galleryScreen");
+        CustomSnackBar().customIconSnackBar(
+            "Pin Saved Successfully!!", context, SnackBarType.success);
+        _activeStep = 0;
+        _pinController.clear();
+        _confirmPinController.clear();
+        notifyListeners();
+        return true;
+      }
+    }
+    CustomSnackBar().customAnimatedSnackBar(
+        "Pin Mismatch",
+        "Please enter a valid pin which was used while creating pin",
+        AnimatedSnackBarType.error,
+        context);
+    _activeStep = 0;
+    _pinController.clear();
+    _confirmPinController.clear();
+    notifyListeners();
+    return false;
+  }
+}

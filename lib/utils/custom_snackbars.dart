@@ -1,6 +1,7 @@
 import 'package:animated_snack_bar/animated_snack_bar.dart';
 import 'package:awesome_snackbar_content/awesome_snackbar_content.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_icon_snackbar/flutter_icon_snackbar.dart';
 
 class CustomSnackBar {
   SnackBar customAwesomeSnackBar(
@@ -24,10 +25,20 @@ class CustomSnackBar {
   void customAnimatedSnackBar(String title, String msg,
       AnimatedSnackBarType snackBarContentType, BuildContext context) {
     AnimatedSnackBar.rectangle(
+      duration: const Duration(seconds: 2),
       title,
       msg,
       type: snackBarContentType,
       brightness: Brightness.dark,
     ).show(context);
+  }
+
+  void customIconSnackBar(
+      String msg, BuildContext context, SnackBarType snackBarContentType) {
+    IconSnackBar.show(
+        labelTextStyle: const TextStyle(color: Colors.white),
+        context,
+        snackBarType: snackBarContentType,
+        label: msg);
   }
 }
