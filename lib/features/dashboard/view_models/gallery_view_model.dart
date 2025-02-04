@@ -7,6 +7,7 @@ class GalleryViewModel extends ChangeNotifier {
 
   get images => _images;
   get isLoading => _isLoading;
+  set isLoading(isLoading) => _isLoading = isLoading;
 
   Future<void> fetchImages() async {
     final PermissionState ps = await PhotoManager.requestPermissionExtend(

@@ -16,6 +16,11 @@ setPrefString(String key, String value) async {
   prefs.setString(key, value);
 }
 
+setPrefStringList(String key, List<String> value) async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  prefs.setStringList(key, value);
+}
+
 setPrefBool(String key, bool value) async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   prefs.setBool(key, value);
@@ -35,6 +40,11 @@ getPrefDouble(String key) async {
 getPrefString(String key) async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   return prefs.getString(key);
+}
+
+Future<List<String>?> getPrefStringList(String key) async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  return prefs.getStringList(key);
 }
 
 Future<bool?> getPrefBool(String key) async {

@@ -20,6 +20,7 @@ class GalleryView extends StatelessWidget {
 
       return Scaffold(
         appBar: AppBar(
+          leading: Text(""),
           centerTitle: true,
           title: const Text("Gallery"),
           actions: [
