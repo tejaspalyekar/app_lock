@@ -1,5 +1,4 @@
-import 'package:android_intent_plus/android_intent.dart';
-import 'package:android_intent_plus/flag.dart';
+
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/features/lock_app/view_models/lock_app_view_model.dart';
 import 'package:app_lock/utils/customs/custom_textButton.dart';
@@ -9,14 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class LockAppView extends StatelessWidget {
-  void setAsDefaultLauncher() async {
-    const intent = AndroidIntent(
-      action: 'android.settings.HOME_SETTINGS',
-      flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
-    );
-    await intent.launch();
-  }
-
   LockAppView(
       {super.key,
       required this.isPinAlreadySet,

@@ -1,11 +1,32 @@
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
 import 'package:app_lock/config/app_navigator.dart';
-import 'package:app_lock/features/launcher/view/launcher_view.dart';
 import 'package:app_lock/utils/customs/custom_textButton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
-class GetStatedScreen extends StatelessWidget {
+class GetStatedScreen extends StatefulWidget {
   const GetStatedScreen({super.key});
+
+  @override
+  State<GetStatedScreen> createState() => _GetStatedScreenState();
+}
+
+class _GetStatedScreenState extends State<GetStatedScreen> {
+  @override
+  void initState() {
+    // TODO: implement initState
+    setAsDefaultLauncher();
+    super.initState();
+  }
+
+  void setAsDefaultLauncher() async {
+    const intent = AndroidIntent(
+      action: 'android.settings.HOME_SETTINGS',
+      flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
+    );
+    await intent.launch();
+  }
 
   @override
   Widget build(BuildContext context) {
