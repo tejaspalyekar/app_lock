@@ -1,6 +1,8 @@
 import 'package:app_lock/config/constants/app_constants.dart';
+import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/lock_app/view_models/lock_app_view_model.dart';
 import 'package:app_lock/utils/customs/custom_textButton.dart';
+import 'package:device_apps/device_apps.dart';
 import 'package:easy_stepper/easy_stepper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -14,11 +16,13 @@ class LockAppView extends StatelessWidget {
       this.setAppLockPin,
       this.appIconImage,
       this.selectedPackageName,
+      this.isUnLockScreen,
       required this.callBack,
       this.selectedMapAppName});
   final bool isPinAlreadySet;
   final Uint8List? appIconImage;
   final String? selectedPackageName;
+  final bool? isUnLockScreen;
   final String? selectedMapAppName;
   bool? setAppLockPin;
   Function callBack;
@@ -91,18 +95,27 @@ class LockAppView extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 CustomTextButton(
-                  btnTitle: lockAppViewModel.activeStep == 0 ||
-                          lockAppViewModel.activeStep == 3
-                      ? "Next"
-                      : "Save",
-                  callBackFun: () => lockAppViewModel.updateStepIndex(
-                      context,
-                      isPinAlreadySet,
-                      setAppLockPin ?? false,
-                      selectedPackageName ?? "",
-                      selectedMapAppName ?? "",
-                      () => callBack()),
-                )
+                    btnTitle: lockAppViewModel.activeStep == 0 ||
+                            lockAppViewModel.activeStep == 3
+                        ? "Next"
+                        : "Save",
+                    callBackFun: () async {
+                      if (isUnLockScreen ?? false) {
+                        List<String>? lockedAppList =
+                            await getPrefStringList(locked_app_list) ?? [];
+
+                        lockAppViewModel.verifyEnteredPinForAppUnlocking(
+                            context, selectedMapAppName ?? "", lockedAppList);
+                      } else {
+                        lockAppViewModel.updateStepIndex(
+                            context,
+                            isPinAlreadySet,
+                            setAppLockPin ?? false,
+                            selectedPackageName ?? "",
+                            selectedMapAppName ?? "",
+                            () => callBack());
+                      }
+                    })
               ],
             ),
           ),

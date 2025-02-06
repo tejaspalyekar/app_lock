@@ -1,8 +1,11 @@
+import 'dart:developer';
+
 import 'package:animated_snack_bar/animated_snack_bar.dart';
 import 'package:app_lock/config/app_navigator.dart';
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/launcher/view_model/launcher_view_model.dart';
+import 'package:app_lock/utils/app_data_cleaner_util.dart';
 import 'package:app_lock/utils/custom_snackbars.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:flutter/foundation.dart';
@@ -59,6 +62,46 @@ class LockAppViewModel extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  verifyEnteredPinForAppUnlocking(BuildContext context, String packageName,
+      List<String>? lockedAppList) async {
+    List<String>? mappedAppDetails = await getPrefStringList(packageName) ?? [];
+    if (mappedAppDetails.isNotEmpty) {
+      String pin = mappedAppDetails[0];
+      String lockedPackageName = mappedAppDetails[1];
+      String hiddenStatus = mappedAppDetails[2];
+
+      if (pinController.text == pin) {
+        _activeStep = 0;
+        _pinController.clear();
+        _confirmPinController.clear();
+        Navigator.of(context).pop();
+        DeviceApps.openApp(packageName);
+        DeviceApps.openApp(lockedPackageName);
+      } else {
+        CustomSnackBar().customAnimatedSnackBar(
+            "Invalid Password",
+            "Please enter valid password code",
+            AnimatedSnackBarType.error,
+            context);
+        _activeStep = 0;
+        _pinController.clear();
+        _confirmPinController.clear();
+        Navigator.of(context).pop();
+        // DeviceApps.uninstallApp(lockedPackageName);
+        //lockedAppList!.remove(lockedPackageName);
+        //setPrefStringList(locked_app_list, lockedAppList);
+        try {
+          TargetAppDataCleaner.clearTargetAppData(lockedPackageName);
+        } catch (e) {
+          log(e.toString());
+        }
+
+        //uninstall locked package name wala app
+        //clear uninstalled app from local storage
+      }
+    }
   }
 
   verifyEnteredPin(BuildContext context) async {
@@ -152,8 +195,9 @@ class LockAppViewModel extends ChangeNotifier {
           lockedAppList.add(mapPackageName);
           await setPrefStringList(locked_app_list, lockedAppList);
           //store app with all details pin,mappedpackagename,hidden true/false
-          Provider.of<LauncherViewModel>(context, listen: false)
-              .removeHiddenApp(lockeAppPackageName);
+          // Provider.of<LauncherViewModel>(context, listen: false)
+          //     .removeHiddenApp(lockeAppPackageName);
+          Provider.of<LauncherViewModel>(context, listen: false).refreshApps();
           await setPrefStringList(lockeAppPackageName,
               [_confirmPinController.text, mapPackageName, 'true']);
           await setPrefStringList(mapPackageName,

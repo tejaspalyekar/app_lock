@@ -33,17 +33,15 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.inactive) {
-      // Delay slightly to prevent Android from overriding it
-      Future.delayed(const Duration(milliseconds: 100), () {
-        SystemNavigator.pop(); // Forces the app to reopen
-      });
-    }
-  }
+  // @override
+  // void didChangeAppLifecycleState(AppLifecycleState state) {
+  //   if (state == AppLifecycleState.inactive) {
+  //     // Delay slightly to prevent Android from overriding it
+  //     Future.delayed(const Duration(milliseconds: 100), () {
+  //       SystemNavigator.pop(); // Forces the app to reopen
+  //     });
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {

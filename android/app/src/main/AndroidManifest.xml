@@ -1,6 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+<uses-permission android:name="android.permission.CLEAR_APP_CACHE" />
+<uses-permission android:name="android.permission.DELETE_CACHE_FILES" />
+<uses-permission android:name="android.permission.CLEAR_APP_USER_DATA" />
  <!-- add this permission -->
     <uses-permission 
 	    android:name="android.permission.QUERY_ALL_PACKAGES"/>
