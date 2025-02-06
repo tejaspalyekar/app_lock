@@ -1,3 +1,5 @@
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
 import 'package:app_lock/features/dashboard/views/gallery_view.dart';
 import 'package:app_lock/features/dashboard/views/app_locker_view.dart';
 import 'package:app_lock/features/launcher/view/launcher_view.dart';
@@ -5,6 +7,7 @@ import 'package:app_lock/utils/get_started_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
+import 'package:flutter/services.dart';
 
 class InitialRoute extends StatelessWidget {
   @override
@@ -14,26 +17,53 @@ class InitialRoute extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-              child: SizedBox(
-            width: 40,
-            height: 40,
-            child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation(Colors.cyan),
+            child: SizedBox(
+              width: 40,
+              height: 40,
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(Colors.cyan),
+              ),
             ),
-          )); // Loading indicator
+          ); // Loading indicator
         } else {
-          if (snapshot.data ?? false) {
-            //    return LockAppView(
-            //   isPinAlreadySet: snapshot.data ?? false,
-            //   callBack: () {},
-            // );
-            return LauncherView();
-          } else {
-            return const GetStatedScreen();
-          }
+          return FutureBuilder<Widget>(
+            future: checkAndSetDefaultLauncher(),
+            builder: (context, launcherSnapshot) {
+              if (launcherSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (launcherSnapshot.hasError) {
+                return const Center(child: Text("Error loading launcher"));
+              } else {
+                return launcherSnapshot.data ?? const GetStatedScreen();
+              }
+            },
+          );
         }
       },
     );
+  }
+}
+
+class LauncherHelper {
+  static const MethodChannel _channel = MethodChannel('app_lock/launcher');
+
+  static Future<bool> isDefaultLauncher() async {
+    try {
+      final bool isDefault = await _channel.invokeMethod('isDefaultLauncher');
+      return isDefault;
+    } catch (e) {
+      print("Error checking default launcher: $e");
+      return false;
+    }
+  }
+}
+
+Future<StatefulWidget> checkAndSetDefaultLauncher() async {
+  bool isDefault = await LauncherHelper.isDefaultLauncher();
+  if (isDefault) {
+    return const LauncherView();
+  } else {
+    return const GetStatedScreen();
   }
 }
 

@@ -33,12 +33,12 @@ class CustomSnackBar {
     ).show(context);
   }
 
-  void customIconSnackBar(
-      String msg, BuildContext context, SnackBarType snackBarContentType) {
-    IconSnackBar.show(
-        labelTextStyle: const TextStyle(color: Colors.white),
-        context,
-        snackBarType: snackBarContentType,
-        label: msg);
-  }
+  // void customIconSnackBar(
+  //     String msg, BuildContext context, SnackBarType snackBarContentType) {
+  //   IconSnackBar.show(
+  //       labelTextStyle: const TextStyle(color: Colors.white),
+  //       context,
+  //       snackBarType: snackBarContentType,
+  //       label: msg);
+  // }
 }

@@ -16,7 +16,7 @@ class _GetStatedScreenState extends State<GetStatedScreen> {
   @override
   void initState() {
     // TODO: implement initState
-    setAsDefaultLauncher();
+
     super.initState();
   }
 
@@ -26,6 +26,7 @@ class _GetStatedScreenState extends State<GetStatedScreen> {
       flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
     );
     await intent.launch();
+    pushReplacement(context, '/launcherView');
   }
 
   @override
@@ -33,7 +34,7 @@ class _GetStatedScreenState extends State<GetStatedScreen> {
     return Scaffold(
       bottomNavigationBar: CustomTextButton(
           callBackFun: () {
-            pushReplacement(context, '/launcherView');
+            setAsDefaultLauncher();
           },
           btnTitle: "Get Stated!!"),
       body: Center(

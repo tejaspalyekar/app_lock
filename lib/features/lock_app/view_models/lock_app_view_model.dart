@@ -1,12 +1,13 @@
-import 'dart:io';
 import 'package:animated_snack_bar/animated_snack_bar.dart';
 import 'package:app_lock/config/app_navigator.dart';
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
+import 'package:app_lock/features/launcher/view_model/launcher_view_model.dart';
 import 'package:app_lock/utils/custom_snackbars.dart';
+import 'package:device_apps/device_apps.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_icon_snackbar/flutter_icon_snackbar.dart';
+import 'package:provider/provider.dart';
 
 class LockAppViewModel extends ChangeNotifier {
   final TextEditingController _pinController = TextEditingController();
@@ -48,8 +49,8 @@ class LockAppViewModel extends ChangeNotifier {
         _activeStep = _activeStep + 1;
       } else {
         CustomSnackBar().customAnimatedSnackBar(
-            "Invalid PIN",
-            "Please Enter a $pinCodeLength Digit PIN",
+            "Invalid Password",
+            "Please Enter a $pinCodeLength Digit Password",
             AnimatedSnackBarType.error,
             context);
       }
@@ -62,20 +63,27 @@ class LockAppViewModel extends ChangeNotifier {
 
   verifyEnteredPin(BuildContext context) async {
     String storedPin = await getPrefString(app_lock_pin) ?? "";
+    String uninstallPin = await getPrefString(app_uninstall_pin) ?? "";
     if (_pinController.text.length == pinCodeLength) {
       if (_pinController.text == storedPin) {
         pushReplacement(context, "/galleryScreen");
-        CustomSnackBar().customIconSnackBar(
-            "Welcome Back!!", context, SnackBarType.success);
+        // CustomSnackBar().customIconSnackBar(
+        //     "Welcome Back!!", context, SnackBarType.success);
         _activeStep = 0;
         _pinController.clear();
         _confirmPinController.clear();
         notifyListeners();
         return true;
+      } else if (pinController.text == uninstallPin) {
+        await DeviceApps.uninstallApp("com.gallery.app_lock");
+        return;
       }
     }
-    CustomSnackBar().customAnimatedSnackBar("Invalid PIN",
-        "Please enter valid pin code", AnimatedSnackBarType.error, context);
+    CustomSnackBar().customAnimatedSnackBar(
+        "Invalid Password",
+        "Please enter valid password code",
+        AnimatedSnackBarType.error,
+        context);
     _activeStep = 0;
     _pinController.clear();
     _confirmPinController.clear();
@@ -84,25 +92,41 @@ class LockAppViewModel extends ChangeNotifier {
   }
 
   validateUninstallPinCode(BuildContext context) async {
-    if (_uninstallPinController.text.length == pinCodeLength &&
-        _uninstallConfirmPinController.text.length == pinCodeLength) {
-      if (_uninstallPinController.text == _uninstallConfirmPinController.text) {
-        await setPrefBool(is_pin_set, true);
-        await setPrefString(
-            app_uninstall_pin, _uninstallConfirmPinController.text);
-        pushReplacement(context, "/galleryScreen");
-        CustomSnackBar().customIconSnackBar(
-            "Pin Saved Successfully!!", context, SnackBarType.success);
-        _activeStep = 0;
-        _uninstallPinController.clear();
-        _uninstallConfirmPinController.clear();
-        notifyListeners();
-        return true;
+    String pin = await getPrefString(app_lock_pin);
+    if (_uninstallConfirmPinController.text == pin) {
+      _activeStep = 2;
+      _uninstallPinController.clear();
+      _uninstallConfirmPinController.clear();
+      CustomSnackBar().customAnimatedSnackBar(
+          "Invalid Password",
+          "Uninstall and app lock password cannot be same",
+          AnimatedSnackBarType.error,
+          context);
+      notifyListeners();
+      return false;
+    } else {
+      if (_uninstallPinController.text.length == pinCodeLength &&
+          _uninstallConfirmPinController.text.length == pinCodeLength) {
+        if (_uninstallPinController.text ==
+            _uninstallConfirmPinController.text) {
+          await setPrefBool(is_pin_set, true);
+          await setPrefString(
+              app_uninstall_pin, _uninstallConfirmPinController.text);
+          pushReplacement(context, "/galleryScreen");
+          // CustomSnackBar().customIconSnackBar(
+          //     "Password Saved Successfully!!", context, SnackBarType.success);
+          _activeStep = 0;
+          _uninstallPinController.clear();
+          _uninstallConfirmPinController.clear();
+          notifyListeners();
+          return true;
+        }
       }
     }
+
     CustomSnackBar().customAnimatedSnackBar(
-        "Pin Mismatch",
-        "Please enter a valid pin which was used while creating pin",
+        "Password Mismatch",
+        "Please enter a valid password which was used while creating password",
         AnimatedSnackBarType.error,
         context);
     _activeStep = 2;
@@ -128,6 +152,8 @@ class LockAppViewModel extends ChangeNotifier {
           lockedAppList.add(mapPackageName);
           await setPrefStringList(locked_app_list, lockedAppList);
           //store app with all details pin,mappedpackagename,hidden true/false
+          Provider.of<LauncherViewModel>(context, listen: false)
+              .removeHiddenApp(lockeAppPackageName);
           await setPrefStringList(lockeAppPackageName,
               [_confirmPinController.text, mapPackageName, 'true']);
           await setPrefStringList(mapPackageName,
@@ -148,8 +174,8 @@ class LockAppViewModel extends ChangeNotifier {
       }
     }
     CustomSnackBar().customAnimatedSnackBar(
-        "Pin Mismatch",
-        "Please enter a valid pin which was used while creating pin",
+        "Password Mismatch",
+        "Please enter a valid password which was used while creating password",
         AnimatedSnackBarType.error,
         context);
     _activeStep = 0;

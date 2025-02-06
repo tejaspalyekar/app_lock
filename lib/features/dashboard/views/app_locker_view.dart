@@ -1,6 +1,6 @@
 import 'dart:typed_data';
-
-import 'package:app_lock/config/app_navigator.dart';
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:android_intent_plus/flag.dart';
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/lock_app/views/lock_app_view.dart';
@@ -63,10 +63,29 @@ class _AppLockerState extends State<AppLocker> {
     await setPrefStringList(locked_app_list, updatedLockedApps.toList());
   }
 
+  void setAsDefaultLauncher() async {
+    const intent = AndroidIntent(
+      action: 'android.settings.HOME_SETTINGS',
+      flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
+    );
+    await intent.launch();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text("App Locker")),
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text("App Locker"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              setAsDefaultLauncher();
+            },
+          ),
+        ],
+      ),
       bottomNavigationBar: Container(
         alignment: Alignment.center,
         height: selectedAppPackageName.isEmpty
@@ -143,43 +162,45 @@ class _AppLockerState extends State<AppLocker> {
                       final app = apps[index];
                       return GestureDetector(
                         onLongPress: () {
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: const Text("Confirm App unlocking"),
-                                content: const Text(
-                                    "Are you sure you want to unlock this application?"),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.of(context)
-                                          .pop(); // Close dialog
-                                    },
-                                    child: const Text(
-                                      "Cancel",
-                                      style: TextStyle(
-                                          color: Color.fromARGB(
-                                              255, 233, 233, 233)),
+                          if (locked) {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return AlertDialog(
+                                  title: const Text("Confirm App unlocking"),
+                                  content: const Text(
+                                      "Are you sure you want to unlock this application?"),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context)
+                                            .pop(); // Close dialog
+                                      },
+                                      child: const Text(
+                                        "Cancel",
+                                        style: TextStyle(
+                                            color: Color.fromARGB(
+                                                255, 233, 233, 233)),
+                                      ),
                                     ),
-                                  ),
-                                  TextButton(
-                                    onPressed: () {
-                                      toggleLock(app.packageName);
-                                      Navigator.of(context).pop();
-                                    },
-                                    child: const Text(
-                                      "Confirm",
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Color.fromARGB(
-                                              255, 255, 255, 255)),
+                                    TextButton(
+                                      onPressed: () {
+                                        toggleLock(app.packageName);
+                                        Navigator.of(context).pop();
+                                      },
+                                      child: const Text(
+                                        "Confirm",
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Color.fromARGB(
+                                                255, 255, 255, 255)),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
+                                  ],
+                                );
+                              },
+                            );
+                          }
                         },
                         child: ListTile(
                           onTap: () async {

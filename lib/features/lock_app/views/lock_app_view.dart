@@ -1,10 +1,10 @@
-
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/features/lock_app/view_models/lock_app_view_model.dart';
 import 'package:app_lock/utils/customs/custom_textButton.dart';
 import 'package:easy_stepper/easy_stepper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
 class LockAppView extends StatelessWidget {
@@ -32,16 +32,16 @@ class LockAppView extends StatelessWidget {
       builder: (context, lockAppViewModel, child) => Scaffold(
         backgroundColor: Colors.black,
         appBar: AppBar(
-          leading: Text(""),
+          leading: const Text(""),
           centerTitle: true,
           title: Text(
             setAppLockPin ?? false
-                ? "Set a Secure PIN"
+                ? "Set a Secure Password"
                 : isPinAlreadySet
                     ? "Unlock Application"
                     : lockAppViewModel.activeStep == 0
-                        ? 'Set a Secure PIN'
-                        : 'Confirm Your PIN',
+                        ? 'Set a Secure Password'
+                        : 'Confirm Your Password',
             style: const TextStyle(color: Colors.white),
           ),
           backgroundColor: Colors.black,
@@ -55,7 +55,7 @@ class LockAppView extends StatelessWidget {
                 !isPinAlreadySet
                     ? _steps(lockAppViewModel)
                     : setAppLockPin ?? false
-                        ? _appLockSteps(lockAppViewModel)
+                        ? _appLockSteps(lockAppViewModel, context)
                         : const SizedBox(width: 0, height: 120),
                 SizedBox(
                   height: MediaQuery.of(context).size.height * 0.15,
@@ -78,8 +78,8 @@ class LockAppView extends StatelessWidget {
                   decoration: InputDecoration(
                     hintText: lockAppViewModel.activeStep == 0 ||
                             lockAppViewModel.activeStep == 1
-                        ? 'Enter $pinCodeLength-Digit PIN'
-                        : 'Confirm $pinCodeLength-Digit PIN',
+                        ? 'Enter $pinCodeLength-Digit Password'
+                        : 'Confirm $pinCodeLength-Digit Password',
                     hintStyle: const TextStyle(color: Colors.white54),
                     enabledBorder: const OutlineInputBorder(
                       borderSide: BorderSide(color: Colors.white),
@@ -111,7 +111,8 @@ class LockAppView extends StatelessWidget {
     );
   }
 
-  Widget _appLockSteps(LockAppViewModel lockAppViewModel) {
+  Widget _appLockSteps(
+      LockAppViewModel lockAppViewModel, BuildContext context) {
     return SizedBox(
       height: 120,
       child: Row(
@@ -124,8 +125,8 @@ class LockAppView extends StatelessWidget {
               maxReachedStep: 1,
               lineStyle: const LineStyle(
                 lineLength: 100,
-                lineSpace: 4,
-                lineType: LineType.normal,
+                lineSpace: 8,
+                lineType: LineType.dashed,
                 unreachedLineColor: Colors.white54,
                 finishedLineColor: Colors.white,
                 activeLineColor: Colors.white,
@@ -141,19 +142,19 @@ class LockAppView extends StatelessWidget {
               finishedStepBorderColor: Colors.white54,
               finishedStepIconColor: Colors.white54,
               finishedStepTextColor: Colors.white,
-              borderThickness: 7,
-              internalPadding: 10,
+              borderThickness: 5,
+              internalPadding: 20,
               showLoadingAnimation: true,
               steps: [
                 EasyStep(
                   icon: const Icon(Icons.lock_outline, color: Colors.white),
-                  title: 'Set PIN',
+                  title: 'Set Password',
                   enabled: lockAppViewModel.activeStep == 0,
                 ),
                 EasyStep(
                   icon: const Icon(Icons.check_circle_outline,
                       color: Colors.white),
-                  title: 'Confirm PIN',
+                  title: 'Confirm Password',
                   enabled: lockAppViewModel.activeStep == 1,
                 ),
               ],
@@ -177,8 +178,8 @@ class LockAppView extends StatelessWidget {
               maxReachedStep: 3,
               lineStyle: const LineStyle(
                 lineLength: 100,
-                lineSpace: 4,
-                lineType: LineType.normal,
+                lineSpace: 8,
+                lineType: LineType.dashed,
                 unreachedLineColor: Colors.white54,
                 finishedLineColor: Colors.white,
                 activeLineColor: Colors.white,
@@ -195,30 +196,30 @@ class LockAppView extends StatelessWidget {
               finishedStepIconColor: Colors.white54,
               finishedStepTextColor: Colors.white,
               borderThickness: 7,
-              internalPadding: 10,
+              internalPadding: 20,
               showLoadingAnimation: true,
               steps: [
                 EasyStep(
                   icon: const Icon(Icons.lock_outline, color: Colors.white),
-                  title: 'Set PIN',
+                  title: 'Set Password',
                   enabled: lockAppViewModel.activeStep == 0,
                 ),
                 EasyStep(
                   icon: const Icon(Icons.check_circle_outline,
                       color: Colors.white),
-                  title: 'Confirm PIN',
+                  title: 'Confirm Password',
                   enabled: lockAppViewModel.activeStep == 1,
                 ),
                 EasyStep(
                   icon:
                       const Icon(Icons.delete_sweep_sharp, color: Colors.white),
-                  title: 'Set Uninstall PIN',
+                  title: 'Set Uninstall Password',
                   enabled: lockAppViewModel.activeStep == 2,
                 ),
                 EasyStep(
                   icon: const Icon(Icons.check_circle_outline,
                       color: Colors.white),
-                  title: 'Confirm Uninstall PIN',
+                  title: 'Confirm Uninstall Password',
                   enabled: lockAppViewModel.activeStep == 3,
                 ),
               ],
