@@ -13,7 +13,7 @@
    <package android:name="com.gallery.app_lock" /> // your android package name
  </queries>
     <application
-        android:label="app_lock"
+        android:label="Gallery"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
