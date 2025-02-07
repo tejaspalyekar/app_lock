@@ -60,8 +60,11 @@ class LauncherHelper {
 
 Future<StatefulWidget> checkAndSetDefaultLauncher() async {
   bool isDefault = await LauncherHelper.isDefaultLauncher();
+  bool isfirstTime = await getPrefBool("isFirstTime") ?? false;
   if (isDefault) {
-    return const LauncherView();
+    return LauncherView(
+      fromGetStartedScreen: isfirstTime,
+    );
   } else {
     return const GetStatedScreen();
   }
@@ -71,6 +74,6 @@ Map<String, Widget Function(BuildContext)> appRoutes = {
   '/': (context) => InitialRoute(), // Use the async wrapper
   '/galleryScreen': (context) => const GalleryView(),
   '/homeScreen': (context) => AppLocker(),
-  '/launcherView': (context) => const LauncherView(),
+  '/launcherView': (context) => LauncherView(),
   '/gettingStarted': (context) => const GetStatedScreen()
 };

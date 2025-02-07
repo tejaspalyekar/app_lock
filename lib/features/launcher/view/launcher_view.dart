@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/launcher/view_model/launcher_view_model.dart';
@@ -8,7 +10,9 @@ import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 class LauncherView extends StatefulWidget {
-  const LauncherView({super.key});
+  LauncherView({super.key, this.fromGetStartedScreen});
+
+  bool? fromGetStartedScreen;
 
   @override
   _LauncherViewState createState() => _LauncherViewState();
@@ -16,12 +20,29 @@ class LauncherView extends StatefulWidget {
 
 class _LauncherViewState extends State<LauncherView> {
   final PageController _pageController = PageController();
-  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
-    Provider.of<LauncherViewModel>(context, listen: false).loadApps();
+    pushLockScreen();
+  }
+
+  pushLockScreen() async {
+    if (widget.fromGetStartedScreen ?? false) {
+      await setPrefBool("isFirstTime", false);
+
+      bool pinStatus = await getPrefBool(is_pin_set) ?? false;
+      Navigator.pop(context);
+      Navigator.of(context).push(PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => LockAppView(
+            uninstallApp: pinStatus,
+            isPinAlreadySet: pinStatus,
+            callBack: () {}),
+      ));
+    }
+
+    Provider.of<LauncherViewModel>(context, listen: false)
+        .loadApps(widget.fromGetStartedScreen ?? false, context);
   }
 
   void _showAppOptions(
@@ -65,19 +86,28 @@ class _LauncherViewState extends State<LauncherView> {
               }
             },
           ),
-          app.packageName != "com.gallery.app_lock"
-              ? ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
-                  title: const Text('Uninstall',
-                      style: TextStyle(color: Colors.red)),
-                  onTap: () async {
-                    Navigator.pop(context);
-                    if (app.packageName != "com.gallery.app_lock") {
-                      await launcher.uninstallApp(app);
-                    }
-                  },
-                )
-              : const SizedBox(width: 0, height: 0),
+          ListTile(
+            leading: const Icon(Icons.delete, color: Colors.red),
+            title: const Text('Uninstall', style: TextStyle(color: Colors.red)),
+            onTap: () async {
+              if (app.packageName == "com.gallery.app_lock") {
+                bool pinStatus = await getPrefBool(is_pin_set) ?? false;
+                Navigator.pop(context);
+                Navigator.of(context).push(PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      LockAppView(
+                          uninstallApp: pinStatus,
+                          isPinAlreadySet: pinStatus,
+                          callBack: () {}),
+                ));
+              } else {
+                Navigator.pop(context);
+                if (app.packageName != "com.gallery.app_lock") {
+                  await launcher.uninstallApp(app);
+                }
+              }
+            },
+          )
         ],
       ),
     );
@@ -148,8 +178,7 @@ class _LauncherViewState extends State<LauncherView> {
                 LockAppView(isPinAlreadySet: pinStatus, callBack: () {}),
           ));
         } else {
-          launcher.openAppLockScreen(app.packageName,context);
-          
+          launcher.openAppLockScreen(app.packageName, context);
         }
       },
       onLongPress: () => _showAppOptions(context, app, launcher),

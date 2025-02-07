@@ -21,23 +21,32 @@ class LauncherViewModel extends ChangeNotifier {
   // Stream subscription for app events
   StreamSubscription? _appEventSubscription;
 
-  LauncherViewModel() {
-    _initializeAppEvents();
+  LauncherViewModel(BuildContext context) {
+    _initializeAppEvents(context);
   }
 
-  void _initializeAppEvents() {
-    _appEventSubscription = DeviceApps.listenToAppsChanges().listen((event) {
+  void _initializeAppEvents(BuildContext context) {
+    _appEventSubscription =
+        DeviceApps.listenToAppsChanges().listen((event) async {
       if (event.event == ApplicationEventType.installed ||
           event.event == ApplicationEventType.updated ||
           event.event == ApplicationEventType.uninstalled) {
-        refreshApps();
+        if (event.event == ApplicationEventType.uninstalled) {
+          List<String>? lockedAppsList =
+              await getPrefStringList(locked_app_list) ?? [];
+          if (lockedAppsList.contains(event.packageName)) {
+            lockedAppsList.remove(event.packageName);
+            setPrefStringList(locked_app_list, lockedAppsList);
+          }
+        }
+        refreshApps(context);
       }
     });
   }
 
-  Future<void> refreshApps() async {
+  Future<void> refreshApps(BuildContext context) async {
     _cachedApps = null;
-    await loadApps();
+    await loadApps(false, context);
   }
 
   Future<List<Application>> _getInstalledApps() async {
@@ -57,10 +66,13 @@ class LauncherViewModel extends ChangeNotifier {
     return apps;
   }
 
-  Future<void> loadApps() async {
+  Future<void> loadApps(
+      bool isFromGettingStartedScreen, BuildContext context) async {
     loading = true;
+
     final prefs = await SharedPreferences.getInstance();
     final installedApps = await _getInstalledApps();
+
     List<String> lockedAppList = await getPrefStringList(locked_app_list) ?? [];
     if (lockedAppList.isNotEmpty) {
       List<String> lockedPackages = [];
@@ -93,7 +105,9 @@ class LauncherViewModel extends ChangeNotifier {
         pinnedApps!.any((pinned) => pinned.packageName == app.packageName));
 
     _organizeAppsIntoPages(installedApps);
+
     loading = false;
+
     notifyListeners();
   }
 

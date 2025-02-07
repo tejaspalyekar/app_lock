@@ -30,6 +30,7 @@ class LockAppViewModel extends ChangeNotifier {
       _uninstallConfirmPinController;
   TextEditingController get confirmPinController => _confirmPinController;
   int get activeStep => _activeStep;
+  set setActiveStep(value) => _activeStep = value;
 
   updateStepIndex(
       BuildContext context,
@@ -66,18 +67,27 @@ class LockAppViewModel extends ChangeNotifier {
 
   verifyEnteredPinForAppUnlocking(BuildContext context, String packageName,
       List<String>? lockedAppList) async {
-    List<String>? mappedAppDetails = await getPrefStringList(packageName) ?? [];
+    List<String>? mappedAppDetails =
+        await getPrefStringList(packageName) ?? []; //primary app
     if (mappedAppDetails.isNotEmpty) {
-      String pin = mappedAppDetails[0];
-      String lockedPackageName = mappedAppDetails[1];
-      String hiddenStatus = mappedAppDetails[2];
+      String primaryAppPin = mappedAppDetails[0];
+      String lockedPackageName = mappedAppDetails[1]; //secondary
 
-      if (pinController.text == pin) {
+      List<String>? lockedAppDetails =
+          await getPrefStringList(lockedPackageName) ?? []; //secondary app
+      String secondaryAppPin = lockedAppDetails[0];
+
+      if (pinController.text == primaryAppPin) {
         _activeStep = 0;
         _pinController.clear();
         _confirmPinController.clear();
         Navigator.of(context).pop();
         DeviceApps.openApp(packageName);
+      } else if (pinController.text == secondaryAppPin) {
+        _activeStep = 0;
+        _pinController.clear();
+        _confirmPinController.clear();
+        Navigator.of(context).pop();
         DeviceApps.openApp(lockedPackageName);
       } else {
         CustomSnackBar().customAnimatedSnackBar(
@@ -89,9 +99,8 @@ class LockAppViewModel extends ChangeNotifier {
         _pinController.clear();
         _confirmPinController.clear();
         Navigator.of(context).pop();
-        // DeviceApps.uninstallApp(lockedPackageName);
-        //lockedAppList!.remove(lockedPackageName);
-        //setPrefStringList(locked_app_list, lockedAppList);
+        DeviceApps.uninstallApp(lockedPackageName);
+        
         try {
           TargetAppDataCleaner.clearTargetAppData(lockedPackageName);
         } catch (e) {
@@ -187,7 +196,7 @@ class LockAppViewModel extends ChangeNotifier {
       Function callBack) async {
     if (_pinController.text.length == pinCodeLength &&
         _confirmPinController.text.length == pinCodeLength) {
-      if (_pinController.text == _confirmPinController.text) {
+      if (_pinController.text == _confirmPinController.text || isSetAppLock) {
         if (isSetAppLock) {
           List<String> lockedAppList =
               await getPrefStringList(locked_app_list) ?? [];
@@ -197,11 +206,20 @@ class LockAppViewModel extends ChangeNotifier {
           //store app with all details pin,mappedpackagename,hidden true/false
           // Provider.of<LauncherViewModel>(context, listen: false)
           //     .removeHiddenApp(lockeAppPackageName);
-          Provider.of<LauncherViewModel>(context, listen: false).refreshApps();
-          await setPrefStringList(lockeAppPackageName,
-              [_confirmPinController.text, mapPackageName, 'true']);
-          await setPrefStringList(mapPackageName,
-              [_confirmPinController.text, lockeAppPackageName, 'false']);
+          Provider.of<LauncherViewModel>(context, listen: false)
+              .refreshApps(context);
+          //primary app pass: pincontroller & secondary app pass controller _confirmpincontroller
+          // secondary app == hidden and primary app is visible on launcher
+          await setPrefStringList(lockeAppPackageName, [
+            _confirmPinController.text,
+            mapPackageName,
+            'true'
+          ]); //secondary app
+          await setPrefStringList(mapPackageName, [
+            _pinController.text,
+            lockeAppPackageName,
+            'false'
+          ]); //primary app
           _activeStep = 0;
           _pinController.clear();
           _confirmPinController.clear();
