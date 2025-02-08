@@ -5,12 +5,15 @@ import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/launcher/view_model/launcher_view_model.dart';
 import 'package:app_lock/features/lock_app/views/lock_app_view.dart';
-import 'package:external_app_launcher/external_app_launcher.dart';
+import 'package:app_lock/utils/notification_service_handler.dart';
+import 'package:app_lock/utils/open_whatsapp_settings.dart';
+import 'package:app_lock/utils/request_notification_permission_helper.dart';
+import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:installed_apps/app_info.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class AppLocker extends StatefulWidget {
   @override
@@ -18,6 +21,8 @@ class AppLocker extends StatefulWidget {
 }
 
 class _AppLockerState extends State<AppLocker> {
+  final NotificationPermissionHandler _permissionHandler =
+      NotificationPermissionHandler();
   final ValueNotifier<List<AppInfo>> _allApps = ValueNotifier([]);
   final ValueNotifier<Set<String>> _lockedApps = ValueNotifier({});
   bool _loading = true;
@@ -29,6 +34,53 @@ class _AppLockerState extends State<AppLocker> {
   void initState() {
     super.initState();
     fetchApps();
+    _checkPermissions();
+  }
+
+  Future<void> _requestPermissions() async {
+    await NotificationPermissionHandler.requestNotificationAccess();
+    requestNotificationPermissions(context);
+  }
+
+  Future<void> _checkPermissions() async {
+    // Check if we already have notification permissions
+    const platform = MethodChannel('app_locker/notifications');
+    try {
+      final bool hasPermission =
+          await platform.invokeMethod('checkNotificationPermission');
+      if (!hasPermission) {
+        // Optionally show a dialog explaining why we need permissions
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Permissions Required"),
+              content: const Text(
+                  "To hide notifications from locked apps, this app needs notification access permission. Please grant necessary permission"),
+              actions: [
+                TextButton(
+                  style: const ButtonStyle(
+                      backgroundColor: WidgetStatePropertyAll(Colors.white)),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text("Later"),
+                ),
+                TextButton(
+                  style: const ButtonStyle(
+                      backgroundColor: WidgetStatePropertyAll(Colors.white)),
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    await _requestPermissions();
+                  },
+                  child: const Text("Grant Permission"),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    } catch (e) {
+      print("Error checking notification permission: $e");
+    }
   }
 
   Future<void> fetchApps() async {
@@ -51,6 +103,193 @@ class _AppLockerState extends State<AppLocker> {
     setState(() => _loading = false);
   }
 
+  Widget _buildStep(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Colors.cyan),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 15),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  EnablePermissionDialog(context, PackageName) {
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.notifications_off,
+                  color: Color.fromARGB(255, 248, 97, 97)),
+              SizedBox(width: 10),
+              Text(
+                'Enable Floating Notifications',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Follow these steps to enable floating notifications for ${selectedAppName}:',
+                style: const TextStyle(fontSize: 13),
+              ),
+              selectedAppPackageName == "com.whatsapp"
+                  ? Column(
+                      children: [
+                        const SizedBox(height: 15),
+                        _buildStep(Icons.settings, 'Tap "Go to Settings".'),
+                        _buildStep(Icons.call, 'Select "Call Notifications".'),
+                        _buildStep(Icons.arrow_downward,
+                            'Scroll down to "Floating Notifications".'),
+                        _buildStep(Icons.toggle_off, 'Select "ON".'),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        _buildStep(Icons.arrow_downward,
+                            'Scroll down to "Floating Notifications".'),
+                        _buildStep(Icons.toggle_off, 'Select "ON".'),
+                      ],
+                    ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                toggleLock(PackageName);
+              },
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.cyan,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () async {
+                Navigator.pop(context);
+                await openWhatsAppNotificationSettings(selectedAppPackageName);
+                toggleLock(PackageName);
+              },
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Go to Settings'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  notificationPermissionDialog(context) {
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.notifications_off,
+                  color: Color.fromARGB(255, 248, 97, 97)),
+              SizedBox(width: 10),
+              Text(
+                'Disable Floating Notifications',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Follow these steps to disable floating notifications for ${selectedAppName}:',
+                style: const TextStyle(fontSize: 13),
+              ),
+              selectedAppPackageName == "com.whatsapp"
+                  ? Column(
+                      children: [
+                        const SizedBox(height: 15),
+                        _buildStep(Icons.settings, 'Tap "Go to Settings".'),
+                        _buildStep(Icons.call, 'Select "Call Notifications".'),
+                        _buildStep(Icons.arrow_downward,
+                            'Scroll down to "Floating Notifications".'),
+                        _buildStep(Icons.toggle_off, 'Select "Off".'),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        _buildStep(Icons.arrow_downward,
+                            'Scroll down to "Floating Notifications".'),
+                        _buildStep(Icons.toggle_off, 'Select "Off".'),
+                      ],
+                    ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.cyan,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () async {
+                Navigator.pop(context);
+                await openWhatsAppNotificationSettings(selectedAppPackageName);
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => LockAppView(
+                      callBack: () {
+                        setState(() {
+                          selectedMapAppPackageName = "";
+                          selectedAppIcon = null;
+                          selectedAppName = "";
+                          selectedAppPackageName = "";
+                        });
+                        fetchApps();
+                      },
+                      appIconImage: selectedAppIcon,
+                      selectedMapAppName: selectedMapAppPackageName,
+                      selectedPackageName: selectedAppPackageName,
+                      setAppLockPin: true,
+                      isPinAlreadySet: true),
+                ));
+              },
+              icon: const Icon(Icons.open_in_new),
+              label: const Text('Go to Settings'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void toggleLock(String packageName) async {
     Set<String> updatedLockedApps = Set.from(_lockedApps.value);
 
@@ -60,6 +299,8 @@ class _AppLockerState extends State<AppLocker> {
         String mappedPackageName = appDetail[1];
         updatedLockedApps.remove(packageName);
         updatedLockedApps.remove(mappedPackageName);
+        removePrefData(packageName);
+        removePrefData(mappedPackageName);
       }
     } else {
       updatedLockedApps.add(packageName);
@@ -173,17 +414,16 @@ class _AppLockerState extends State<AppLocker> {
                       final app = apps[index];
                       return FutureBuilder<List<String>?>(
                         future: Future(() async {
-                          // First check if this app is a primary app
-                          final prefs = await SharedPreferences.getInstance();
                           final primaryData =
-                              prefs.getStringList(app.packageName);
+                              await getPrefStringList(app.packageName);
                           if (primaryData != null) {
                             return primaryData;
                           }
 
                           // If not primary, check if it's a secondary app
                           for (var lockedApp in lockedApps) {
-                            final mappingData = prefs.getStringList(lockedApp);
+                            final mappingData =
+                                await getPrefStringList(app.packageName);
                             if (mappingData != null &&
                                 mappingData[1] == app.packageName) {
                               return [
@@ -200,7 +440,8 @@ class _AppLockerState extends State<AppLocker> {
                           bool isHidden = false;
 
                           if (snapshot.hasData && snapshot.data != null) {
-                            if (snapshot.data!.length > 3) {
+                            if (snapshot.data != null &&
+                                snapshot.data!.length > 3) {
                               // This is a secondary app
                               isPrimary = false;
                               final primaryPackageName = snapshot.data!.last;
@@ -211,13 +452,17 @@ class _AppLockerState extends State<AppLocker> {
                               isHidden = snapshot.data![2] == 'false';
                             } else {
                               // This is a primary app
-                              isPrimary = true;
-                              final mappedPackageName = snapshot.data![1];
-                              final mappedApp = allApps.firstWhere(
-                                (a) => a.packageName == mappedPackageName,
-                              );
-                              mappedAppName = mappedApp.name;
-                              isHidden = snapshot.data![2] == 'true';
+                              if (snapshot.data != null &&
+                                  snapshot.data!.isNotEmpty) {
+                                isPrimary = true;
+
+                                final mappedPackageName = snapshot.data![1];
+                                final mappedApp = allApps.firstWhere(
+                                  (a) => a.packageName == mappedPackageName,
+                                );
+                                mappedAppName = mappedApp.name;
+                                isHidden = snapshot.data![2] == 'true';
+                              }
                             }
                           }
 
@@ -313,8 +558,20 @@ class _AppLockerState extends State<AppLocker> {
                                           ),
                                           TextButton(
                                             onPressed: () {
-                                              toggleLock(app.packageName);
                                               Navigator.of(context).pop();
+                                              if (selectedAppPackageName ==
+                                                      "com.whatsapp" ||
+                                                  selectedAppPackageName ==
+                                                      "com.instagram.android" ||
+                                                  selectedAppPackageName ==
+                                                      "org.telegram.messenger" ||
+                                                  selectedAppPackageName ==
+                                                      "com.microsoft.teams") {
+                                                EnablePermissionDialog(
+                                                    context, app.packageName);
+                                              } else {
+                                                toggleLock(app.packageName);
+                                              }
                                             },
                                             child: const Text(
                                               "Confirm",
@@ -332,9 +589,8 @@ class _AppLockerState extends State<AppLocker> {
                               },
                               onTap: () async {
                                 if (locked) {
-                                  await LaunchApp.openApp(
-                                      androidPackageName: app.packageName,
-                                      openStore: false);
+                                  await DeviceApps.openApp(app.packageName);
+
                                   return;
                                 }
                                 if (selectedAppPackageName.isNotEmpty) {
@@ -368,39 +624,52 @@ class _AppLockerState extends State<AppLocker> {
                                             ),
                                           ),
                                           TextButton(
-                                            onPressed: () {
+                                            onPressed: () async {
                                               setState(() {
                                                 selectedMapAppPackageName =
                                                     app.packageName;
                                               });
                                               Navigator.of(context)
                                                   .pop(); // Close dialog after confirming
-                                              Navigator.of(context)
-                                                  .push(MaterialPageRoute(
-                                                builder: (context) =>
-                                                    LockAppView(
-                                                        callBack: () {
-                                                          setState(() {
-                                                            selectedMapAppPackageName =
-                                                                "";
-                                                            selectedAppIcon =
-                                                                null;
-                                                            selectedAppName =
-                                                                "";
-                                                            selectedAppPackageName =
-                                                                "";
-                                                          });
-                                                          fetchApps();
-                                                        },
-                                                        appIconImage:
-                                                            selectedAppIcon,
-                                                        selectedMapAppName:
-                                                            selectedMapAppPackageName,
-                                                        selectedPackageName:
-                                                            selectedAppPackageName,
-                                                        setAppLockPin: true,
-                                                        isPinAlreadySet: true),
-                                              ));
+                                              if (selectedAppPackageName ==
+                                                      "com.whatsapp" ||
+                                                  selectedAppPackageName ==
+                                                      "com.instagram.android" ||
+                                                  selectedAppPackageName ==
+                                                      "org.telegram.messenger" ||
+                                                  selectedAppPackageName ==
+                                                      "com.microsoft.teams") {
+                                                await notificationPermissionDialog(
+                                                    context);
+                                              } else {
+                                                Navigator.of(context)
+                                                    .push(MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      LockAppView(
+                                                          callBack: () {
+                                                            setState(() {
+                                                              selectedMapAppPackageName =
+                                                                  "";
+                                                              selectedAppIcon =
+                                                                  null;
+                                                              selectedAppName =
+                                                                  "";
+                                                              selectedAppPackageName =
+                                                                  "";
+                                                            });
+                                                            fetchApps();
+                                                          },
+                                                          appIconImage:
+                                                              selectedAppIcon,
+                                                          selectedMapAppName:
+                                                              selectedMapAppPackageName,
+                                                          selectedPackageName:
+                                                              selectedAppPackageName,
+                                                          setAppLockPin: true,
+                                                          isPinAlreadySet:
+                                                              true),
+                                                ));
+                                              }
                                             },
                                             child: const Text(
                                               "Confirm",

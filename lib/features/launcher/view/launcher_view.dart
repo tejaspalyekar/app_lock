@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/launcher/view_model/launcher_view_model.dart';
@@ -9,6 +7,7 @@ import 'package:device_apps/device_apps.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
+// ignore: must_be_immutable
 class LauncherView extends StatefulWidget {
   LauncherView({super.key, this.fromGetStartedScreen});
 

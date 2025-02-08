@@ -1,14 +1,10 @@
-import 'dart:async';
-
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:android_intent_plus/flag.dart';
-import 'package:app_lock/config/app_navigator.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/launcher/view/launcher_view.dart';
-import 'package:app_lock/features/lock_app/views/lock_app_view.dart';
 import 'package:app_lock/utils/customs/custom_textButton.dart';
+import 'package:app_lock/utils/notification_service_handler.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 class GetStatedScreen extends StatefulWidget {
   const GetStatedScreen({super.key});
@@ -18,6 +14,8 @@ class GetStatedScreen extends StatefulWidget {
 }
 
 class _GetStatedScreenState extends State<GetStatedScreen> {
+  final NotificationPermissionHandler _permissionHandler =
+      NotificationPermissionHandler();
   @override
   void initState() {
     // TODO: implement initState
@@ -26,6 +24,10 @@ class _GetStatedScreenState extends State<GetStatedScreen> {
   }
 
   void setAsDefaultLauncher() async {
+    Future<void> _requestPermissions() async {
+      await NotificationPermissionHandler.requestNotificationAccess();
+    }
+
     const intent = AndroidIntent(
       action: 'android.settings.HOME_SETTINGS',
       flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
@@ -38,20 +40,6 @@ class _GetStatedScreenState extends State<GetStatedScreen> {
         fromGetStartedScreen: false,
       ),
     ));
-    // Navigator.of(context)
-    //     .push(PageRouteBuilder(
-    //   pageBuilder: (context, animation, secondaryAnimation) => LockAppView(
-    //       isUnLockScreen: false, isPinAlreadySet: false, callBack: (value) {}),
-    // ))
-    //     .then(
-    //   (value) {
-    //     // Navigator.of(context).pushReplacement(PageRouteBuilder(
-    //     //   pageBuilder: (context, animation, secondaryAnimation) => LauncherView(
-    //     //     fromGetStartedScreen: true,
-    //     //   ),
-    //     // ));
-    //   },
-    // );
   }
 
   @override
