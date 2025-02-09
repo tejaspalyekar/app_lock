@@ -1,3 +1,4 @@
+import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 
@@ -7,8 +8,10 @@ class GalleryViewModel extends ChangeNotifier {
 
   get images => _images;
   get isLoading => _isLoading;
+  set isLoading(isLoading) => _isLoading = isLoading;
 
   Future<void> fetchImages() async {
+    FirebaseLogger.logEvent("fetched images started");
     final PermissionState ps = await PhotoManager.requestPermissionExtend(
         requestOption: const PermissionRequestOption(
             androidPermission:
@@ -23,7 +26,7 @@ class GalleryViewModel extends ChangeNotifier {
         _isLoading = false;
       }
     }
-
+    FirebaseLogger.logEvent("fetched images completed");
     notifyListeners();
   }
 }

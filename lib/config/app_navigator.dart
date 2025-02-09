@@ -8,8 +8,6 @@ void popScreen(BuildContext context) {
   Navigator.of(context).pop();
 }
 
-void pushReplacement(BuildContext context, String screenName) {
+pushReplacement(BuildContext context, String screenName) {
   Navigator.of(context).pushReplacementNamed(screenName);
 }
-
-
