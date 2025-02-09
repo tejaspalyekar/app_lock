@@ -1,44 +1,80 @@
+import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 Future<void> requestNotificationPermissions(BuildContext context) async {
-  // Check for notification policy access
   if (!await Permission.notification.isGranted) {
     await Permission.notification.request();
   }
 
-  // Request notification policy access (DND access)
   if (await Permission.accessNotificationPolicy.status.isDenied) {
-    // Show dialog explaining why we need the permission
     if (context.mounted) {
       showDialog(
         context: context,
+        barrierDismissible: false,
         builder: (context) => AlertDialog(
-          title: const Text('Permission Required'),
+          backgroundColor: Colors.black,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: const Text(
+            'Permission Required',
+            style: TextStyle(
+              color: Colors.cyan,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           content: const Text(
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            'Please grant Phone & Call logs permission from App permissions',
+            'Please allow restricted settings to manage notifications effectively for hidden apps.',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              height: 1.5,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () {
+                FirebaseLogger.logEvent("Restricted permissions not allowed");
+                Navigator.pop(context);
+              },
+              style: TextButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                FirebaseLogger.logEvent("Open restricted permissions settings");
                 Navigator.pop(context);
                 openAppSettings();
               },
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.cyan.withOpacity(0.1),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
               child: const Text(
-                  style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w500),
-                  'Open Settings'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                  style: TextStyle(
-                      color: Color.fromARGB(255, 184, 184, 184),
-                      fontWeight: FontWeight.w500),
-                  'Cancel'),
+                'Open Settings',
+                style: TextStyle(
+                  color: Colors.cyan,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ],
+          actionsPadding: const EdgeInsets.all(16),
         ),
       );
     }

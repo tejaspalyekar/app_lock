@@ -1,8 +1,8 @@
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/lock_app/view_models/lock_app_view_model.dart';
+import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:app_lock/utils/customs/custom_textButton.dart';
-import 'package:device_apps/device_apps.dart';
 import 'package:easy_stepper/easy_stepper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -125,6 +125,16 @@ class _LockAppViewState extends State<LockAppView> {
                         ? "Next"
                         : "Save",
                     callBackFun: () async {
+                      FirebaseLogger.logEvent("lockAppViewBtn", parameters: {
+                        "step": lockAppViewModel.activeStep.toString(),
+                        "btn_title": lockAppViewModel.activeStep == 0 ||
+                                lockAppViewModel.activeStep == 3
+                            ? "Next"
+                            : "Save",
+                        "app_name": widget.selectedMapAppName ?? "",
+                        "selected_package_name":
+                            widget.selectedPackageName ?? ""
+                      });
                       if (widget.isUnLockScreen ?? false) {
                         List<String>? lockedAppList =
                             await getPrefStringList(locked_app_list) ?? [];

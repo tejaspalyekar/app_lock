@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer';
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/lock_app/views/lock_app_view.dart';
+import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:flutter/material.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,11 +34,20 @@ class LauncherViewModel extends ChangeNotifier {
           event.event == ApplicationEventType.updated ||
           event.event == ApplicationEventType.uninstalled) {
         if (event.event == ApplicationEventType.uninstalled) {
-          List<String>? lockedAppsList =
-              await getPrefStringList(locked_app_list) ?? [];
-          if (lockedAppsList.contains(event.packageName)) {
-            lockedAppsList.remove(event.packageName);
-            setPrefStringList(locked_app_list, lockedAppsList);
+          FirebaseLogger.logEvent("listenToAppsChanges",
+              parameters: {"event_name": event.event.toString()});
+          try {
+            List<String>? lockedAppsList =
+                await getPrefStringList(locked_app_list) ?? [];
+            if (lockedAppsList.contains(event.packageName)) {
+              lockedAppsList.remove(event.packageName);
+              setPrefStringList(locked_app_list, lockedAppsList);
+            }
+          } catch (e) {
+            log(e.toString());
+            FirebaseLogger.logEvent("error_listen_to_app_changes", parameters: {
+              "error": e.toString(),
+            });
           }
         }
         refreshApps(context);
@@ -45,11 +56,13 @@ class LauncherViewModel extends ChangeNotifier {
   }
 
   Future<void> refreshApps(BuildContext context) async {
+    FirebaseLogger.logEvent("refresh_apps");
     _cachedApps = null;
     await loadApps(false, context);
   }
 
   Future<List<Application>> _getInstalledApps() async {
+    FirebaseLogger.logEvent("get_installed_apps");
     if (_cachedApps != null && _lastLoadTime != null) {
       final difference = DateTime.now().difference(_lastLoadTime!);
       return _cachedApps!;
@@ -68,51 +81,60 @@ class LauncherViewModel extends ChangeNotifier {
 
   Future<void> loadApps(
       bool isFromGettingStartedScreen, BuildContext context) async {
-    loading = true;
+    FirebaseLogger.logEvent("load_apps_started");
+    try {
+      loading = true;
 
-    final prefs = await SharedPreferences.getInstance();
-    final installedApps = await _getInstalledApps();
+      final prefs = await SharedPreferences.getInstance();
+      final installedApps = await _getInstalledApps();
 
-    List<String> lockedAppList = await getPrefStringList(locked_app_list) ?? [];
-    if (lockedAppList.isNotEmpty) {
-      List<String> lockedPackages = [];
+      List<String> lockedAppList =
+          await getPrefStringList(locked_app_list) ?? [];
+      if (lockedAppList.isNotEmpty) {
+        List<String> lockedPackages = [];
 
-      for (String package in lockedAppList) {
-        List<String> appDetails = await getPrefStringList(package) ?? [];
-        if (appDetails.length > 2 && appDetails[2] == "true") {
-          lockedPackages.add(package);
+        for (String package in lockedAppList) {
+          List<String> appDetails = await getPrefStringList(package) ?? [];
+          if (appDetails.length > 2 && appDetails[2] == "true") {
+            lockedPackages.add(package);
+          }
         }
+
+        installedApps
+            .removeWhere((app) => lockedPackages.contains(app.packageName));
+      }
+      installedApps.sort((a, b) => a.appName.compareTo(b.appName));
+
+      // Load pinned apps
+      String? storedPinnedApps = prefs.getString('pinned_apps');
+      if (storedPinnedApps != null) {
+        List<String> pinnedPackages =
+            List<String>.from(json.decode(storedPinnedApps));
+        pinnedApps = installedApps
+            .where((app) => pinnedPackages.contains(app.packageName))
+            .toList();
+      } else {
+        pinnedApps = [];
       }
 
-      installedApps
-          .removeWhere((app) => lockedPackages.contains(app.packageName));
+      installedApps.removeWhere((app) =>
+          pinnedApps!.any((pinned) => pinned.packageName == app.packageName));
+
+      _organizeAppsIntoPages(installedApps);
+      FirebaseLogger.logEvent("load_apps_finished");
+      loading = false;
+    } catch (e) {
+      FirebaseLogger.logEvent("load_apps_error",
+          parameters: {"error": e.toString()});
+      log(e.toString());
     }
-    installedApps.sort((a, b) => a.appName.compareTo(b.appName));
-
-    // Load pinned apps
-    String? storedPinnedApps = prefs.getString('pinned_apps');
-    if (storedPinnedApps != null) {
-      List<String> pinnedPackages =
-          List<String>.from(json.decode(storedPinnedApps));
-      pinnedApps = installedApps
-          .where((app) => pinnedPackages.contains(app.packageName))
-          .toList();
-    } else {
-      pinnedApps = [];
-    }
-
-    installedApps.removeWhere((app) =>
-        pinnedApps!.any((pinned) => pinned.packageName == app.packageName));
-
-    _organizeAppsIntoPages(installedApps);
-
-    loading = false;
 
     notifyListeners();
   }
 
   @override
   void dispose() {
+    FirebaseLogger.logEvent("launcher_view_disposed");
     _appEventSubscription?.cancel();
     super.dispose();
   }
@@ -123,87 +145,153 @@ class LauncherViewModel extends ChangeNotifier {
   }
 
   void _organizeAppsIntoPages(List<Application> apps) {
-    pages.clear();
-    LauncherPage currentPage = LauncherPage(apps: []);
+    try {
+      pages.clear();
+      LauncherPage currentPage = LauncherPage(apps: []);
 
-    for (var app in apps) {
-      if (currentPage.items.length >= APPS_PER_PAGE) {
-        pages.add(currentPage);
-        currentPage = LauncherPage(apps: []);
+      for (var app in apps) {
+        if (currentPage.items.length >= APPS_PER_PAGE) {
+          pages.add(currentPage);
+          currentPage = LauncherPage(apps: []);
+        }
+        currentPage.items.add(app);
       }
-      currentPage.items.add(app);
-    }
 
-    if (currentPage.items.isNotEmpty) {
-      pages.add(currentPage);
+      if (currentPage.items.isNotEmpty) {
+        pages.add(currentPage);
+      }
+    } catch (e) {
+      FirebaseLogger.logEvent("organize_apps_error",
+          parameters: {"error": e.toString()});
+      log(e.toString());
     }
   }
 
   Future<void> uninstallApp(Application app) async {
-    bool wasUninstalled = await DeviceApps.uninstallApp(app.packageName);
-    await Future.delayed(const Duration(seconds: 2));
-    Application? checkApp = await DeviceApps.getApp(app.packageName, false);
-    if (checkApp == null) {
-      if (wasUninstalled) {
-        // Remove from pinned apps
-        pinnedApps?.removeWhere((a) => a.packageName == app.packageName);
+    FirebaseLogger.logEvent("uninstall_app", parameters: {"app": app.appName});
+    try {
+      bool wasUninstalled = await DeviceApps.uninstallApp(app.packageName);
+      await Future.delayed(const Duration(seconds: 2));
+      Application? checkApp = await DeviceApps.getApp(app.packageName, false);
+      if (checkApp == null) {
+        if (wasUninstalled) {
+          // Remove from pinned apps
+          pinnedApps?.removeWhere((a) => a.packageName == app.packageName);
 
+          // Remove from pages
+          for (var page in pages) {
+            page.items.removeWhere((item) =>
+                item is Application && item.packageName == app.packageName);
+          }
+
+          // Rebalance pages
+          List<Application> allApps = [];
+          for (var page in pages) {
+            allApps.addAll(page.items.whereType<Application>());
+          }
+          _organizeAppsIntoPages(allApps);
+
+          notifyListeners();
+          _savePinnedApps();
+        }
+      }
+    } catch (e) {
+      FirebaseLogger.logEvent("uninstall_app_error",
+          parameters: {"app": app.appName, "error": e.toString()});
+      log(e.toString());
+    }
+  }
+
+  Future<void> _savePinnedApps() async {
+    FirebaseLogger.logEvent("save_pinned_apps");
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'pinned_apps',
+        json.encode(pinnedApps?.map((app) => app.packageName).toList() ?? []),
+      );
+    } catch (e) {
+      log(e.toString());
+      FirebaseLogger.logEvent("save_pinned_apps_error",
+          parameters: {"error": e.toString()});
+    }
+  }
+
+  void pinApp(Application app) {
+    FirebaseLogger.logEvent("pin_app");
+    pinnedApps ??= [];
+    try {
+      if (!pinnedApps!.contains(app)) {
         // Remove from pages
         for (var page in pages) {
           page.items.removeWhere((item) =>
               item is Application && item.packageName == app.packageName);
         }
 
-        // Rebalance pages
-        List<Application> allApps = [];
-        for (var page in pages) {
-          allApps.addAll(page.items.whereType<Application>());
-        }
-        _organizeAppsIntoPages(allApps);
-
-        notifyListeners();
+        pinnedApps!.add(app);
         _savePinnedApps();
+        notifyListeners();
       }
+    } catch (e) {
+      log(e.toString());
+      FirebaseLogger.logEvent("pin_app_error",
+          parameters: {"app": app.appName, "error": e.toString()});
     }
   }
 
-  Future<void> _savePinnedApps() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'pinned_apps',
-      json.encode(pinnedApps?.map((app) => app.packageName).toList() ?? []),
-    );
+  void reorderApps(int pageIndex, int fromIndex, int toIndex) {
+    if (pageIndex < 0 || pageIndex >= pages.length) return;
+    if (fromIndex < 0 || fromIndex >= pages[pageIndex].items.length) return;
+    if (toIndex < 0 || toIndex >= pages[pageIndex].items.length) return;
+
+    final page = pages[pageIndex];
+    final item = page.items.removeAt(fromIndex);
+    page.items.insert(toIndex, item);
+
+    // Optionally save the new order to persistent storage
+    _saveAppOrder(pageIndex);
+
+    notifyListeners();
   }
 
-  void pinApp(Application app) {
-    pinnedApps ??= [];
-    if (!pinnedApps!.contains(app)) {
-      // Remove from pages
-      for (var page in pages) {
-        page.items.removeWhere((item) =>
-            item is Application && item.packageName == app.packageName);
-      }
-
-      pinnedApps!.add(app);
-      _savePinnedApps();
-      notifyListeners();
+  Future<void> _saveAppOrder(int pageIndex) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pageApps = pages[pageIndex]
+          .items
+          .map((app) => (app as Application).packageName)
+          .toList();
+      await prefs.setStringList('page_${pageIndex}_order', pageApps);
+    } catch (e) {
+      FirebaseLogger.logEvent("save_app_order_error",
+          parameters: {"error": e.toString()});
+      log(e.toString());
     }
   }
 
   void unpinApp(Application app) {
-    if (pinnedApps?.remove(app) ?? false) {
-      // Add back to pages
-      if (pages.last.items.length >= APPS_PER_PAGE) {
-        pages.add(LauncherPage(apps: [app]));
-      } else {
-        pages.last.items.add(app);
+    FirebaseLogger.logEvent("unpin_app");
+    try {
+      if (pinnedApps?.remove(app) ?? false) {
+        // Add back to pages
+        if (pages.last.items.length >= APPS_PER_PAGE) {
+          pages.add(LauncherPage(apps: [app]));
+        } else {
+          pages.last.items.add(app);
+        }
+        _savePinnedApps();
+        notifyListeners();
       }
-      _savePinnedApps();
-      notifyListeners();
+    } catch (e) {
+      log(e.toString());
+      FirebaseLogger.logEvent("unpin_app_error",
+          parameters: {"app": app.appName, "error": e.toString()});
     }
   }
 
   openAppLockScreen(String packageName, BuildContext context) async {
+    FirebaseLogger.logEvent("open_app_lock_screen",
+        parameters: {"app": packageName});
     List<String>? lockedAppList =
         await getPrefStringList(locked_app_list) ?? [];
 

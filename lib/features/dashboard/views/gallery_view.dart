@@ -1,6 +1,9 @@
+import 'dart:developer';
+
 import 'package:app_lock/config/app_navigator.dart';
 import 'package:app_lock/features/dashboard/view_models/gallery_view_model.dart';
 import 'package:app_lock/features/dashboard/views/settings_view.dart';
+import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
@@ -15,7 +18,11 @@ class GalleryView extends StatelessWidget {
       // Call fetchImages() when the widget is first rendered
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (galleryViewModel.isLoading && galleryViewModel.images.isEmpty) {
-          galleryViewModel.fetchImages();
+          try {
+            galleryViewModel.fetchImages();
+          } catch (e) {
+            log(e.toString());
+          }
         }
       });
 
@@ -30,10 +37,16 @@ class GalleryView extends StatelessWidget {
               icon: const Icon(Icons.search),
             ),
             IconButton(
-              onPressed: () => Navigator.of(context).push(PageRouteBuilder(
-                pageBuilder: (context, animation, secondaryAnimation) =>
-                    SettingsScreen(),
-              )),
+              onPressed: () {
+                FirebaseLogger.logEvent(
+                  'hamBurger_menu_click',
+                  parameters: {'screen': 'Gallery'},
+                );
+                Navigator.of(context).push(PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      SettingsScreen(),
+                ));
+              },
               icon: const Icon(Icons.menu),
             ),
           ],

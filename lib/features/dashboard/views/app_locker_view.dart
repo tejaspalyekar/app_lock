@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:typed_data';
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:android_intent_plus/flag.dart';
@@ -5,6 +6,7 @@ import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/launcher/view_model/launcher_view_model.dart';
 import 'package:app_lock/features/lock_app/views/lock_app_view.dart';
+import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:app_lock/utils/notification_service_handler.dart';
 import 'package:app_lock/utils/open_whatsapp_settings.dart';
 import 'package:app_lock/utils/request_notification_permission_helper.dart';
@@ -33,16 +35,31 @@ class _AppLockerState extends State<AppLocker> {
   @override
   void initState() {
     super.initState();
-    fetchApps();
-    _checkPermissions();
+    try {
+      fetchApps();
+      askForRistrictedPermissions();
+    } catch (e) {
+      log(e.toString());
+    }
+  }
+
+  askForRistrictedPermissions() async {
+    FirebaseLogger.logEvent("ask_for_restricted_permissions");
+    const platform = MethodChannel('app_locker/notifications');
+    final bool hasPermission =
+        await platform.invokeMethod('checkNotificationPermission');
+    if (!hasPermission) {
+      _checkPermissions();
+      requestNotificationPermissions(context);
+    }
   }
 
   Future<void> _requestPermissions() async {
     await NotificationPermissionHandler.requestNotificationAccess();
-    requestNotificationPermissions(context);
   }
 
   Future<void> _checkPermissions() async {
+    FirebaseLogger.logEvent("checkPermissions");
     // Check if we already have notification permissions
     const platform = MethodChannel('app_locker/notifications');
     try {
@@ -54,24 +71,53 @@ class _AppLockerState extends State<AppLocker> {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: const Text("Permissions Required"),
+              backgroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              title: const Text(
+                "Permissions Required",
+                style: TextStyle(
+                  color: Colors.cyan,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               content: const Text(
-                  "To hide notifications from locked apps, this app needs notification access permission. Please grant necessary permission"),
+                  "To hide notifications for locked apps, this app needs notification access permission. Please grant necessary permission"),
               actions: [
                 TextButton(
-                  style: const ButtonStyle(
-                      backgroundColor: WidgetStatePropertyAll(Colors.white)),
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text("Later"),
+                  onPressed: () {
+                    FirebaseLogger.logEvent(
+                        "Notification listener permission cancelled");
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text(
+                    "Later",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      height: 1.5,
+                    ),
+                  ),
                 ),
                 TextButton(
-                  style: const ButtonStyle(
-                      backgroundColor: WidgetStatePropertyAll(Colors.white)),
+                  style: ButtonStyle(
+                      backgroundColor:
+                          WidgetStatePropertyAll(Colors.cyan.withOpacity(0.1))),
                   onPressed: () async {
                     Navigator.of(context).pop();
+                    FirebaseLogger.logEvent(
+                        "Notification listener permission setting opened");
                     await _requestPermissions();
                   },
-                  child: const Text("Grant Permission"),
+                  child: const Text(
+                    "Grant Permission",
+                    style: TextStyle(
+                      color: Colors.cyan,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             );
@@ -84,6 +130,7 @@ class _AppLockerState extends State<AppLocker> {
   }
 
   Future<void> fetchApps() async {
+    FirebaseLogger.logEvent("fetch_apps");
     setState(() => _loading = true);
 
     try {
@@ -94,6 +141,9 @@ class _AppLockerState extends State<AppLocker> {
       // Fetch locked apps from SharedPreferences
       List<String>? lockedAppsList =
           await getPrefStringList(locked_app_list) ?? [];
+      FirebaseLogger.logEvent('locked_app_list', parameters: {
+        'locked_app_list_size': lockedAppsList.toString(),
+      });
       _lockedApps.value =
           lockedAppsList.toSet(); // Convert List to Set for quick lookup
     } catch (e) {
@@ -249,6 +299,9 @@ class _AppLockerState extends State<AppLocker> {
           actions: [
             TextButton(
               onPressed: () {
+                FirebaseLogger.logEvent(
+                  "floating_notification_cancel",
+                );
                 Navigator.pop(context);
               },
               child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
@@ -262,6 +315,10 @@ class _AppLockerState extends State<AppLocker> {
               ),
               onPressed: () async {
                 Navigator.pop(context);
+                FirebaseLogger.logEvent("open_floating_notification_setting",
+                    parameters: {
+                      "selected_package_name": selectedAppPackageName,
+                    });
                 await openWhatsAppNotificationSettings(selectedAppPackageName);
                 Navigator.of(context).push(MaterialPageRoute(
                   builder: (context) => LockAppView(
@@ -327,14 +384,14 @@ class _AppLockerState extends State<AppLocker> {
       appBar: AppBar(
         centerTitle: true,
         title: const Text("App Locker"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              setAsDefaultLauncher();
-            },
-          ),
-        ],
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.settings),
+        //     onPressed: () {
+        //       setAsDefaultLauncher();
+        //     },
+        //   ),
+        // ],
       ),
       bottomNavigationBar: Container(
         alignment: Alignment.center,
@@ -546,6 +603,8 @@ class _AppLockerState extends State<AppLocker> {
                                         actions: [
                                           TextButton(
                                             onPressed: () {
+                                              FirebaseLogger.logEvent(
+                                                  "cancel_btn_are_you_sure_unlocking_application");
                                               Navigator.of(context)
                                                   .pop(); // Close dialog
                                             },
@@ -558,6 +617,12 @@ class _AppLockerState extends State<AppLocker> {
                                           ),
                                           TextButton(
                                             onPressed: () {
+                                              FirebaseLogger.logEvent(
+                                                  "unlock_app",
+                                                  parameters: {
+                                                    "selected_package_name":
+                                                        selectedAppPackageName,
+                                                  });
                                               Navigator.of(context).pop();
                                               if (selectedAppPackageName ==
                                                       "com.whatsapp" ||
@@ -613,6 +678,9 @@ class _AppLockerState extends State<AppLocker> {
                                         actions: [
                                           TextButton(
                                             onPressed: () {
+                                              FirebaseLogger.logEvent(
+                                                "lock_app_cancel_btn",
+                                              );
                                               Navigator.of(context)
                                                   .pop(); // Close dialog
                                             },
@@ -625,6 +693,14 @@ class _AppLockerState extends State<AppLocker> {
                                           ),
                                           TextButton(
                                             onPressed: () async {
+                                              FirebaseLogger.logEvent(
+                                                  "lock_app",
+                                                  parameters: {
+                                                    "primary_app":
+                                                        selectedMapAppPackageName,
+                                                    "secondary_app":
+                                                        selectedAppPackageName
+                                                  });
                                               setState(() {
                                                 selectedMapAppPackageName =
                                                     app.packageName;

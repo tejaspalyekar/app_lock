@@ -5,6 +5,7 @@ import 'package:app_lock/config/app_navigator.dart';
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/launcher/view_model/launcher_view_model.dart';
+import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:app_lock/utils/app_data_cleaner_util.dart';
 import 'package:app_lock/utils/custom_snackbars.dart';
 import 'package:device_apps/device_apps.dart';
@@ -100,7 +101,7 @@ class LockAppViewModel extends ChangeNotifier {
         _confirmPinController.clear();
         Navigator.of(context).pop();
         DeviceApps.uninstallApp(lockedPackageName);
-        
+
         try {
           TargetAppDataCleaner.clearTargetAppData(lockedPackageName);
         } catch (e) {
@@ -118,6 +119,7 @@ class LockAppViewModel extends ChangeNotifier {
     String uninstallPin = await getPrefString(app_uninstall_pin) ?? "";
     if (_pinController.text.length == pinCodeLength) {
       if (_pinController.text == storedPin) {
+        FirebaseLogger.logEvent("verifyEnteredPin");
         pushReplacement(context, "/galleryScreen");
         // CustomSnackBar().customIconSnackBar(
         //     "Welcome Back!!", context, SnackBarType.success);
@@ -161,6 +163,8 @@ class LockAppViewModel extends ChangeNotifier {
           _uninstallConfirmPinController.text.length == pinCodeLength) {
         if (_uninstallPinController.text ==
             _uninstallConfirmPinController.text) {
+          FirebaseLogger.logEvent("uninstallPinValidation",
+              parameters: {"is_pin_set": "true"});
           await setPrefBool(is_pin_set, true);
           await setPrefString(
               app_uninstall_pin, _uninstallConfirmPinController.text);

@@ -1,9 +1,13 @@
+import 'dart:developer';
+
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:android_intent_plus/flag.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/launcher/view/launcher_view.dart';
+import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:app_lock/utils/customs/custom_textButton.dart';
 import 'package:app_lock/utils/notification_service_handler.dart';
+
 import 'package:flutter/material.dart';
 
 class GetStatedScreen extends StatefulWidget {
@@ -14,26 +18,23 @@ class GetStatedScreen extends StatefulWidget {
 }
 
 class _GetStatedScreenState extends State<GetStatedScreen> {
-  final NotificationPermissionHandler _permissionHandler =
-      NotificationPermissionHandler();
   @override
   void initState() {
-    // TODO: implement initState
-
     super.initState();
   }
 
   void setAsDefaultLauncher() async {
-    Future<void> _requestPermissions() async {
-      await NotificationPermissionHandler.requestNotificationAccess();
+    FirebaseLogger.logEvent("Setting as default launcher");
+    try {
+      const intent = AndroidIntent(
+        action: 'android.settings.HOME_SETTINGS',
+        flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
+      );
+      setPrefBool("isFirstTime", true);
+      await intent.launch();
+    } catch (e) {
+      log(e.toString());
     }
-
-    const intent = AndroidIntent(
-      action: 'android.settings.HOME_SETTINGS',
-      flags: <int>[Flag.FLAG_ACTIVITY_NEW_TASK],
-    );
-    setPrefBool("isFirstTime", true);
-    await intent.launch();
 
     Navigator.of(context).pushReplacement(PageRouteBuilder(
       pageBuilder: (context, animation, secondaryAnimation) => LauncherView(

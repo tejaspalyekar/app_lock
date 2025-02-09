@@ -3,6 +3,7 @@ import 'package:android_intent_plus/flag.dart';
 import 'package:app_lock/features/dashboard/views/gallery_view.dart';
 import 'package:app_lock/features/dashboard/views/app_locker_view.dart';
 import 'package:app_lock/features/launcher/view/launcher_view.dart';
+import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:app_lock/utils/get_started_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:app_lock/config/constants/app_constants.dart';
@@ -59,14 +60,22 @@ class LauncherHelper {
 }
 
 Future<StatefulWidget> checkAndSetDefaultLauncher() async {
-  bool isDefault = await LauncherHelper.isDefaultLauncher();
-  bool isfirstTime = await getPrefBool("isFirstTime") ?? false;
-  if (isDefault) {
-    return LauncherView(
-      fromGetStartedScreen: isfirstTime,
-    );
-  } else {
-    return const GetStatedScreen();
+  try {
+    bool isDefault = await LauncherHelper.isDefaultLauncher();
+    bool isfirstTime = await getPrefBool("isFirstTime") ?? false;
+    FirebaseLogger.logEvent("checkAndSetDefaultLauncher", parameters: {
+      "isFirstTime": isfirstTime ? "true" : "false",
+      "isDefault": isDefault ? "true" : "false"
+    });
+    if (isDefault) {
+      return LauncherView(
+        fromGetStartedScreen: isfirstTime,
+      );
+    } else {
+      return const GetStatedScreen();
+    }
+  } catch (e) {
+    rethrow;
   }
 }
 
