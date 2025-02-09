@@ -1,13 +1,26 @@
+import 'dart:ui';
+
 import 'package:app_lock/config/route.dart';
 import 'package:app_lock/config/theme.dart';
 import 'package:app_lock/features/dashboard/view_models/gallery_view_model.dart';
 import 'package:app_lock/features/launcher/view_model/launcher_view_model.dart';
 import 'package:app_lock/features/lock_app/view_models/lock_app_view_model.dart';
+import 'package:app_lock/utils/FirebaseLogger.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  FlutterError.onError = (errorDetails) {
+    FirebaseLogger.crashlytics.recordFlutterFatalError(errorDetails);
+  };
+  // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseLogger.crashlytics.recordError(error, stack, fatal: true);
+    return true;
+  };
   runApp(const MyApp());
 }
 
