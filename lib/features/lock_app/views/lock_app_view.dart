@@ -172,7 +172,7 @@ class _LockAppViewState extends State<LockAppView> {
             flex: 15,
             child: EasyStepper(
               activeStep: lockAppViewModel.activeStep,
-              maxReachedStep: 1,
+              maxReachedStep: 2,
               lineStyle: const LineStyle(
                 lineLength: 100,
                 lineSpace: 8,
@@ -198,7 +198,7 @@ class _LockAppViewState extends State<LockAppView> {
               steps: [
                 EasyStep(
                   customTitle: const Text(
-                      style: TextStyle(color: Colors.white, fontSize: 12),
+                      style: TextStyle(color: Colors.white, fontSize: 11),
                       textAlign: TextAlign.center,
                       "Set Primary App Password"),
                   icon: const Icon(Icons.lock_outline, color: Colors.white),
@@ -209,11 +209,24 @@ class _LockAppViewState extends State<LockAppView> {
                   icon: const Icon(Icons.check_circle_outline,
                       color: Colors.white),
                   customTitle: const Text(
-                      style: TextStyle(color: Colors.white, fontSize: 12),
+                      style: TextStyle(color: Colors.white, fontSize: 11),
                       textAlign: TextAlign.center,
                       'Set Secondary App Password'),
                   title: 'Set Secondary App Password',
                   enabled: lockAppViewModel.activeStep == 1,
+                ),
+                EasyStep(
+                  icon: const Icon(Icons.delete_forever, color: Colors.white),
+                  customTitle: const SizedBox(
+                    width: 50,
+                    child: Text(
+                        maxLines: 2,
+                        style: TextStyle(color: Colors.white, fontSize: 11),
+                        textAlign: TextAlign.center,
+                        'Secondary Uninstall Password'),
+                  ),
+                  title: 'Secondary Uninstall Password',
+                  enabled: lockAppViewModel.activeStep == 2,
                 ),
               ],
             ),

@@ -19,6 +19,8 @@ class LockAppViewModel extends ChangeNotifier {
   final TextEditingController _uninstallPinController = TextEditingController();
   final TextEditingController _uninstallConfirmPinController =
       TextEditingController();
+  String installPass = "";
+  String secondaryPass = "";
   int _activeStep = 0;
   // bool get itemUploadingState => _isItemUploadLoading;
   // Uint8List? get imageFilePath => _imageFile;
@@ -42,16 +44,29 @@ class LockAppViewModel extends ChangeNotifier {
       Function callBack) {
     if (isSetAppLock || !isPinAlreadySet) {
       if (_activeStep == 1) {
-        validatePinCode(context, isSetAppLock, lockedPackageName,
-            mappedAppPackageName, callBack);
+        validatePinCode(context, isSetAppLock);
       } else if (_activeStep == 0 &&
           _pinController.text.length == pinCodeLength) {
         _activeStep = _activeStep + 1;
       } else if (_activeStep == 3) {
         validateUninstallPinCode(context);
       } else if (_activeStep == 2 &&
-          _uninstallPinController.text.length == pinCodeLength) {
-        _activeStep = _activeStep + 1;
+          (_uninstallPinController.text.length == pinCodeLength)) {
+        if (_uninstallPinController.text == installPass) {
+          CustomSnackBar().customAnimatedSnackBar(
+              "Invalid Password",
+              "Uninstall and app lock password cannot be same",
+              AnimatedSnackBarType.error,
+              context);
+          return;
+        }
+
+        if (!isSetAppLock) {
+          _activeStep = _activeStep + 1;
+        } else {
+          setSecurePin(
+              context, lockedPackageName, mappedAppPackageName, callBack);
+        }
       } else {
         CustomSnackBar().customAnimatedSnackBar(
             "Invalid Password",
@@ -66,6 +81,47 @@ class LockAppViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  setSecurePin(BuildContext context, String lockeAppPackageName,
+      String mapPackageName, Function callBack) async {
+    if (secondaryPass == _uninstallPinController.text ||
+        installPass == _uninstallPinController.text) {
+      CustomSnackBar().customAnimatedSnackBar(
+          "Invalid Password",
+          "Please enter unique password for primary and secondary app",
+          AnimatedSnackBarType.error,
+          context);
+      _activeStep = 1;
+      _uninstallPinController.clear();
+      _confirmPinController.clear();
+      notifyListeners();
+      return false;
+    }
+    List<String> lockedAppList = await getPrefStringList(locked_app_list) ?? [];
+    lockedAppList.add(lockeAppPackageName);
+    lockedAppList.add(mapPackageName);
+    await setPrefStringList(locked_app_list, lockedAppList);
+    //store app with all details pin,mappedpackagename,hidden true/false
+    // Provider.of<LauncherViewModel>(context, listen: false)
+    //     .removeHiddenApp(lockeAppPackageName);
+    Provider.of<LauncherViewModel>(context, listen: false).refreshApps(context);
+    //primary app pass: pincontroller & secondary app pass controller _confirmpincontroller
+    // secondary app == hidden and primary app is visible on launcher
+    await setPrefStringList(lockeAppPackageName, [
+      installPass,
+      mapPackageName,
+      'true',
+      _uninstallPinController.text
+    ]); //secondary app
+    await setPrefStringList(mapPackageName,
+        [secondaryPass, lockeAppPackageName, 'false']); //primary app
+    _activeStep = 0;
+    _pinController.clear();
+    _confirmPinController.clear();
+    _uninstallPinController.clear();
+    callBack();
+    Navigator.of(context).pop();
+  }
+
   verifyEnteredPinForAppUnlocking(BuildContext context, String packageName,
       List<String>? lockedAppList) async {
     List<String>? mappedAppDetails =
@@ -77,6 +133,7 @@ class LockAppViewModel extends ChangeNotifier {
       List<String>? lockedAppDetails =
           await getPrefStringList(lockedPackageName) ?? []; //secondary app
       String secondaryAppPin = lockedAppDetails[0];
+      String uninstallPassword = lockedAppDetails[3];
 
       if (pinController.text == primaryAppPin) {
         _activeStep = 0;
@@ -90,12 +147,12 @@ class LockAppViewModel extends ChangeNotifier {
         _confirmPinController.clear();
         Navigator.of(context).pop();
         DeviceApps.openApp(lockedPackageName);
-      } else {
-        CustomSnackBar().customAnimatedSnackBar(
-            "Invalid Password",
-            "Please enter valid password code",
-            AnimatedSnackBarType.error,
-            context);
+      } else if (pinController.text == uninstallPassword) {
+        // CustomSnackBar().customAnimatedSnackBar(
+        //     "Invalid Password",
+        //     "Please enter valid password code",
+        //     AnimatedSnackBarType.error,
+        //     context);
         _activeStep = 0;
         _pinController.clear();
         _confirmPinController.clear();
@@ -192,49 +249,32 @@ class LockAppViewModel extends ChangeNotifier {
     return false;
   }
 
-  validatePinCode(
-      BuildContext context,
-      bool isSetAppLock,
-      String lockeAppPackageName,
-      String mapPackageName,
-      Function callBack) async {
+  validatePinCode(BuildContext context, bool isAppLock) async {
     if (_pinController.text.length == pinCodeLength &&
         _confirmPinController.text.length == pinCodeLength) {
-      if (_pinController.text == _confirmPinController.text || isSetAppLock) {
-        if (isSetAppLock) {
-          List<String> lockedAppList =
-              await getPrefStringList(locked_app_list) ?? [];
-          lockedAppList.add(lockeAppPackageName);
-          lockedAppList.add(mapPackageName);
-          await setPrefStringList(locked_app_list, lockedAppList);
-          //store app with all details pin,mappedpackagename,hidden true/false
-          // Provider.of<LauncherViewModel>(context, listen: false)
-          //     .removeHiddenApp(lockeAppPackageName);
-          Provider.of<LauncherViewModel>(context, listen: false)
-              .refreshApps(context);
-          //primary app pass: pincontroller & secondary app pass controller _confirmpincontroller
-          // secondary app == hidden and primary app is visible on launcher
-          await setPrefStringList(lockeAppPackageName, [
-            _confirmPinController.text,
-            mapPackageName,
-            'true'
-          ]); //secondary app
-          await setPrefStringList(mapPackageName, [
-            _pinController.text,
-            lockeAppPackageName,
-            'false'
-          ]); //primary app
+      if (_pinController.text == _confirmPinController.text || isAppLock) {
+        if (isAppLock && _pinController.text == _confirmPinController.text) {
+          CustomSnackBar().customAnimatedSnackBar(
+              "Invalid Password",
+              "Please enter a unique password",
+              AnimatedSnackBarType.error,
+              context);
           _activeStep = 0;
           _pinController.clear();
           _confirmPinController.clear();
-          callBack();
-          Navigator.of(context).pop();
-        } else {
-          await setPrefString(app_lock_pin, _confirmPinController.text);
-          _activeStep = _activeStep + 1;
-          _pinController.clear();
-          _confirmPinController.clear();
+          notifyListeners();
+          return;
         }
+        if (!isAppLock) {
+          await setPrefString(app_lock_pin, _confirmPinController.text);
+        }
+
+        _activeStep = _activeStep + 1;
+        installPass = _confirmPinController.text;
+        secondaryPass = _pinController.text;
+        _pinController.clear();
+        _confirmPinController.clear();
+
         notifyListeners();
         return true;
       }

@@ -1,4 +1,5 @@
 import 'package:app_lock/config/app_navigator.dart';
+import 'package:app_lock/features/launcher/view/launcher_view.dart';
 import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -36,6 +37,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: FloatingActionButton.small(
+          backgroundColor: Colors.white,
+          child: const Icon(
+            Icons.home,
+            color: Colors.black,
+          ),
+          onPressed: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pop();
+            // Navigator.of(context).pushReplacement(PageRouteBuilder(
+            //   transitionDuration: Duration(milliseconds: 500),
+            //   pageBuilder: (context, animation, secondaryAnimation) =>
+            //       LauncherView(),
+            // ));
+          }),
       backgroundColor: Colors.black,
       bottomNavigationBar: SizedBox(
         height: 30,

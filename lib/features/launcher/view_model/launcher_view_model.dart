@@ -14,7 +14,7 @@ class LauncherViewModel extends ChangeNotifier {
   List<Application>? pinnedApps;
   int currentPage = 0;
   bool loading = false;
-  static const int APPS_PER_PAGE = 20;
+  static const int APPS_PER_PAGE = 24;
 
   // Cache for installed apps
   List<Application>? _cachedApps;
@@ -106,7 +106,7 @@ class LauncherViewModel extends ChangeNotifier {
       installedApps.sort((a, b) => a.appName.compareTo(b.appName));
 
       // Load pinned apps
-      String? storedPinnedApps = prefs.getString('pinned_apps');
+      String? storedPinnedApps = await prefs.getString('pinned_apps');
       if (storedPinnedApps != null) {
         List<String> pinnedPackages =
             List<String>.from(json.decode(storedPinnedApps));
@@ -116,7 +116,7 @@ class LauncherViewModel extends ChangeNotifier {
       } else {
         pinnedApps = [];
       }
-
+      log(pinnedApps.toString());
       installedApps.removeWhere((app) =>
           pinnedApps!.any((pinned) => pinned.packageName == app.packageName));
 
@@ -128,7 +128,7 @@ class LauncherViewModel extends ChangeNotifier {
           parameters: {"error": e.toString()});
       log(e.toString());
     }
-
+    log(pinnedApps.toString());
     notifyListeners();
   }
 
@@ -147,6 +147,7 @@ class LauncherViewModel extends ChangeNotifier {
   void _organizeAppsIntoPages(List<Application> apps) {
     try {
       pages.clear();
+      pages.add(LauncherPage(apps: []));
       LauncherPage currentPage = LauncherPage(apps: []);
 
       for (var app in apps) {
@@ -154,7 +155,22 @@ class LauncherViewModel extends ChangeNotifier {
           pages.add(currentPage);
           currentPage = LauncherPage(apps: []);
         }
-        currentPage.items.add(app);
+        if (app.packageName == "com.android.chrome" ||
+            app.packageName == "com.android.camera" ||
+            app.packageName == "com.sec.android.app.camera" ||
+            app.packageName == "com.oppo.camera" ||
+            app.packageName == "org.codeaurora.snapcam" ||
+            app.packageName == "com.google.android.dialer" ||
+            app.packageName == "com.android.dialer" ||
+            app.packageName == "com.samsung.android.dialer" ||
+            app.packageName == "com.android.messaging" ||
+            app.packageName == "com.samsung.android.messaging" ||
+            app.packageName == "com.google.android.apps.messaging" ||
+            app.packageName == "com.miui.mms") {
+          pinApp(app);
+        } else {
+          currentPage.items.add(app);
+        }
       }
 
       if (currentPage.items.isNotEmpty) {
@@ -219,23 +235,26 @@ class LauncherViewModel extends ChangeNotifier {
 
   void pinApp(Application app) {
     FirebaseLogger.logEvent("pin_app");
-    pinnedApps ??= [];
-    try {
-      if (!pinnedApps!.contains(app)) {
-        // Remove from pages
-        for (var page in pages) {
-          page.items.removeWhere((item) =>
-              item is Application && item.packageName == app.packageName);
-        }
 
-        pinnedApps!.add(app);
-        _savePinnedApps();
-        notifyListeners();
+    pinnedApps ??= [];
+    if (pinnedApps!.length < 4) {
+      try {
+        if (!pinnedApps!.contains(app)) {
+          // Remove from pages
+          for (var page in pages) {
+            page.items.removeWhere((item) =>
+                item is Application && item.packageName == app.packageName);
+          }
+
+          pinnedApps!.add(app);
+          _savePinnedApps();
+          notifyListeners();
+        }
+      } catch (e) {
+        log(e.toString());
+        FirebaseLogger.logEvent("pin_app_error",
+            parameters: {"app": app.appName, "error": e.toString()});
       }
-    } catch (e) {
-      log(e.toString());
-      FirebaseLogger.logEvent("pin_app_error",
-          parameters: {"app": app.appName, "error": e.toString()});
     }
   }
 

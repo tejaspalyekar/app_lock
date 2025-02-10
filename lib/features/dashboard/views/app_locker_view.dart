@@ -4,6 +4,7 @@ import 'package:android_intent_plus/android_intent.dart';
 import 'package:android_intent_plus/flag.dart';
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
+import 'package:app_lock/features/launcher/view/launcher_view.dart';
 import 'package:app_lock/features/launcher/view_model/launcher_view_model.dart';
 import 'package:app_lock/features/lock_app/views/lock_app_view.dart';
 import 'package:app_lock/utils/FirebaseLogger.dart';
@@ -199,7 +200,8 @@ class _AppLockerState extends State<AppLocker> {
                 'Follow these steps to enable floating notifications for ${selectedAppName}:',
                 style: const TextStyle(fontSize: 13),
               ),
-              selectedAppPackageName == "com.whatsapp"
+              selectedAppPackageName == "com.whatsapp" ||
+                      selectedAppPackageName == "com.whatsapp.w4b"
                   ? Column(
                       children: [
                         const SizedBox(height: 15),
@@ -276,7 +278,8 @@ class _AppLockerState extends State<AppLocker> {
                 'Follow these steps to disable floating notifications for ${selectedAppName}:',
                 style: const TextStyle(fontSize: 13),
               ),
-              selectedAppPackageName == "com.whatsapp"
+              selectedAppPackageName == "com.whatsapp" ||
+                      selectedAppPackageName == "com.whatsapp.w4b"
                   ? Column(
                       children: [
                         const SizedBox(height: 15),
@@ -381,17 +384,33 @@ class _AppLockerState extends State<AppLocker> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      floatingActionButton: FloatingActionButton.small(
+          backgroundColor: Colors.white,
+          child: const Icon(
+            Icons.home,
+            color: Colors.black,
+          ),
+          onPressed: () {
+            Navigator.of(context).pop();
+            Navigator.of(context).pop();
+            Navigator.of(context).pop();
+            // Navigator.of(context).pushReplacement(PageRouteBuilder(
+            //   transitionDuration: Duration(milliseconds: 500),
+            //   pageBuilder: (context, animation, secondaryAnimation) =>
+            //       LauncherView(),
+            // ));
+          }),
       appBar: AppBar(
         centerTitle: true,
         title: const Text("App Locker"),
-        // actions: [
-        //   IconButton(
-        //     icon: const Icon(Icons.settings),
-        //     onPressed: () {
-        //       setAsDefaultLauncher();
-        //     },
-        //   ),
-        // ],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              setAsDefaultLauncher();
+            },
+          ),
+        ],
       ),
       bottomNavigationBar: Container(
         alignment: Alignment.center,
@@ -498,10 +517,10 @@ class _AppLockerState extends State<AppLocker> {
 
                           if (snapshot.hasData && snapshot.data != null) {
                             if (snapshot.data != null &&
-                                snapshot.data!.length > 3) {
+                                snapshot.data!.length > 4) {
                               // This is a secondary app
                               isPrimary = false;
-                              final primaryPackageName = snapshot.data!.last;
+                              final primaryPackageName = snapshot.data![0];
                               final primaryApp = allApps.firstWhere(
                                 (a) => a.packageName == primaryPackageName,
                               );
@@ -627,6 +646,8 @@ class _AppLockerState extends State<AppLocker> {
                                               if (selectedAppPackageName ==
                                                       "com.whatsapp" ||
                                                   selectedAppPackageName ==
+                                                      "com.whatsapp.w4b" ||
+                                                  selectedAppPackageName ==
                                                       "com.instagram.android" ||
                                                   selectedAppPackageName ==
                                                       "org.telegram.messenger" ||
@@ -709,6 +730,8 @@ class _AppLockerState extends State<AppLocker> {
                                                   .pop(); // Close dialog after confirming
                                               if (selectedAppPackageName ==
                                                       "com.whatsapp" ||
+                                                  selectedAppPackageName ==
+                                                      "com.whatsapp.w4b" ||
                                                   selectedAppPackageName ==
                                                       "com.instagram.android" ||
                                                   selectedAppPackageName ==

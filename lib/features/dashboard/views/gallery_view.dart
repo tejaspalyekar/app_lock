@@ -1,9 +1,5 @@
-import 'dart:developer';
-
-import 'package:app_lock/config/app_navigator.dart';
 import 'package:app_lock/features/dashboard/view_models/gallery_view_model.dart';
 import 'package:app_lock/features/dashboard/views/settings_view.dart';
-import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
@@ -14,85 +10,105 @@ class GalleryView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<GalleryViewModel>(
-        builder: (context, galleryViewModel, child) {
-      // Call fetchImages() when the widget is first rendered
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (galleryViewModel.isLoading && galleryViewModel.images.isEmpty) {
-          try {
+      builder: (context, galleryViewModel, child) {
+        // Call fetchImages() when the widget is first rendered
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (galleryViewModel.isLoading && galleryViewModel.images.isEmpty) {
             galleryViewModel.fetchImages();
-          } catch (e) {
-            log(e.toString());
           }
-        }
-      });
+        });
 
-      return Scaffold(
-        appBar: AppBar(
-          leading: Text(""),
-          centerTitle: true,
-          title: const Text("Gallery"),
-          actions: [
-            IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.search),
-            ),
-            IconButton(
-              onPressed: () {
-                FirebaseLogger.logEvent(
-                  'hamBurger_menu_click',
-                  parameters: {'screen': 'Gallery'},
-                );
-                Navigator.of(context).push(PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      SettingsScreen(),
-                ));
-              },
-              icon: const Icon(Icons.menu),
+        return Scaffold(
+          appBar: AppBar(
+            leading: const SizedBox(), // Empty leading widget
+            centerTitle: true,
+            title: const Text("Gallery"),
+            actions: [
+              IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.search),
+              ),
+              IconButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) =>
+                          SettingsScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.menu),
+              ),
+            ],
+          ),
+          body: _buildBody(galleryViewModel, context),
+        );
+      },
+    );
+  }
+
+  Widget _buildBody(GalleryViewModel viewModel, BuildContext context) {
+    if (viewModel.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation(Colors.cyan),
+        ),
+      );
+    }
+
+    if (viewModel.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(viewModel.error!),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => viewModel.fetchImages(),
+              child: const Text("Retry"),
             ),
           ],
         ),
-        body: galleryViewModel.isLoading
-            ? const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation(Colors.cyan),
-                ),
-              )
-            : galleryViewModel.images.isEmpty
-                ? const Center(child: Text("Gallery is empty"))
-                : GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 4,
-                      mainAxisSpacing: 4,
-                    ),
-                    itemCount: galleryViewModel.images.length,
-                    itemBuilder: (context, index) {
-                      return FutureBuilder<dynamic>(
-                        future: galleryViewModel.images[index]
-                            .thumbnailDataWithSize(
-                                const ThumbnailSize(200, 200))
-                            .then((data) {
-                          if (data != null) {
-                            return Image.memory(data, fit: BoxFit.cover);
-                          }
-                          return const Icon(Icons.image_not_supported);
-                        }),
-                        builder: (context, snapshot) {
-                          if (snapshot.connectionState ==
-                              ConnectionState.done) {
-                            return snapshot.data ??
-                                const Icon(Icons.image_not_supported);
-                          }
-                          return const Center(
-                              child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation(Colors.cyan),
-                          ));
-                        },
-                      );
-                    },
-                  ),
       );
-    });
+    }
+
+    if (viewModel.images.isEmpty) {
+      return const Center(child: Text("Gallery is empty"));
+    }
+
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
+      ),
+      itemCount: viewModel.images.length,
+      itemBuilder: (context, index) {
+        return FutureBuilder<dynamic>(
+          future: viewModel.images[index]
+              .thumbnailDataWithSize(const ThumbnailSize(200, 200)),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.done) {
+              if (snapshot.hasError) {
+                return const Icon(Icons.error_outline);
+              }
+              if (snapshot.hasData) {
+                return Image.memory(
+                  snapshot.data!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const Icon(Icons.image_not_supported),
+                );
+              }
+            }
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(Colors.cyan),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

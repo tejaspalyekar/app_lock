@@ -1,14 +1,17 @@
-import 'dart:async';
+import 'dart:developer';
 
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
+import 'package:app_lock/features/current_weather/view/weather_view.dart';
 import 'package:app_lock/features/launcher/view_model/launcher_view_model.dart';
 import 'package:app_lock/features/lock_app/views/lock_app_view.dart';
 import 'package:flutter/material.dart';
 import 'package:device_apps/device_apps.dart';
+import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
+// ignore: must_be_immutable
 class LauncherView extends StatefulWidget {
   LauncherView({super.key, this.fromGetStartedScreen});
 
@@ -18,14 +21,52 @@ class LauncherView extends StatefulWidget {
   _LauncherViewState createState() => _LauncherViewState();
 }
 
-class _LauncherViewState extends State<LauncherView> {
+class _LauncherViewState extends State<LauncherView>
+    with WidgetsBindingObserver {
   final PageController _pageController = PageController();
-
+  DateTime? _lastInactiveTime;
+  bool _isRecentAppsOpen = false;
   @override
   void initState() {
     super.initState();
     pushLockScreen();
+    // WidgetsBinding.instance.addObserver(this);
+    // SystemChannels.lifecycle.setMessageHandler((msg) async {
+    //   if (msg == AppLifecycleState.inactive.toString()) {
+    //     _lastInactiveTime = DateTime.now();
+    //   }
+    //   return null;
+    // });
   }
+
+  // @override
+  // void didChangeAppLifecycleState(AppLifecycleState state) {
+  //   if (state == AppLifecycleState.inactive) {
+  //     _lastInactiveTime = DateTime.now();
+  //   } else if (state == AppLifecycleState.resumed) {
+  //     // If the app was inactive for a very short time (< 100ms),
+  //     // it's likely the recent apps gesture
+  //     if (_lastInactiveTime != null) {
+  //       final duration = DateTime.now().difference(_lastInactiveTime!);
+  //       if (duration.inMilliseconds < 100) {
+  //         _isRecentAppsOpen = true;
+  //         return;
+  //       }
+  //     }
+
+  //     // If recent apps wasn't triggered and we're resuming,
+  //     // it was likely a home button press
+  //     if (!_isRecentAppsOpen) {
+  //       log("launch home screen");
+  //       // Navigator.pushReplacement(
+  //       //   context,
+  //       //   MaterialPageRoute(builder: (context) => LauncherHomeScreen()),
+  //       // );
+  //     }
+
+  //     _isRecentAppsOpen = false;
+  //   }
+  // }
 
   pushLockScreen() async {
     if (widget.fromGetStartedScreen ?? false) {
@@ -128,6 +169,7 @@ class _LauncherViewState extends State<LauncherView> {
                       child: Lottie.asset("assets/loading_lottie.json")))
               : SafeArea(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
                         child: PageView.builder(
@@ -135,22 +177,39 @@ class _LauncherViewState extends State<LauncherView> {
                           onPageChanged: (page) {},
                           itemCount: launcher.pages.length,
                           itemBuilder: (context, pageIndex) {
-                            return GridView.builder(
-                              padding: const EdgeInsets.all(16),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 4,
-                                childAspectRatio: 0.8,
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                              ),
-                              itemCount: launcher.pages[pageIndex].items.length,
-                              itemBuilder: (context, index) {
-                                final app = launcher.pages[pageIndex]
-                                    .items[index] as Application;
-                                return _buildAppItem(app, launcher);
-                              },
-                            );
+                            return pageIndex == 0
+                                ? const Column(
+                                    children: [
+                                      SizedBox(
+                                        height: 50,
+                                      ),
+                                      BuildGoogleWidget(),
+                                      SizedBox(
+                                        height: 50,
+                                      ),
+                                      Align(
+                                          alignment: Alignment.bottomLeft,
+                                          child: WeatherView()),
+                                    ],
+                                  )
+                                : GridView.builder(
+                                    shrinkWrap: true,
+                                    padding: const EdgeInsets.all(16),
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 4,
+                                      childAspectRatio: 0.8,
+                                      crossAxisSpacing: 16,
+                                      mainAxisSpacing: 16,
+                                    ),
+                                    itemCount:
+                                        launcher.pages[pageIndex].items.length,
+                                    itemBuilder: (context, index) {
+                                      final app = launcher.pages[pageIndex]
+                                          .items[index] as Application;
+                                      return _buildAppItem(app, launcher);
+                                    },
+                                  );
                           },
                         ),
                       ),
@@ -159,7 +218,7 @@ class _LauncherViewState extends State<LauncherView> {
                       //     currentPage: _currentPage,
                       //     pageCount: launcher.pages.length,
                       //   ),
-                      _buildFooter(launcher),
+                      Center(child: _buildFooter(launcher)),
                     ],
                   ),
                 ),
@@ -195,12 +254,15 @@ class _LauncherViewState extends State<LauncherView> {
           else
             const Icon(Icons.android, size: 50, color: Colors.white),
           const SizedBox(height: 4),
-          Text(
-            app.appName,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          SizedBox(
+            width: 50,
+            child: Text(
+              app.appName,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -209,27 +271,78 @@ class _LauncherViewState extends State<LauncherView> {
 
   Widget _buildFooter(LauncherViewModel launcher) {
     return Container(
+      alignment: Alignment.center,
       height: 100,
       color: Colors.transparent,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: launcher.pinnedApps?.length ?? 0,
-        itemBuilder: (context, index) {
-          final app = launcher.pinnedApps![index];
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: _buildAppItem(app, launcher),
-          );
-        },
-      ),
+      child: launcher.pinnedApps == null || launcher.pinnedApps!.isEmpty
+          ? const SizedBox() // Hide if no apps are pinned
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min, // Center items in the Row
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: launcher.pinnedApps!
+                    .map((app) => Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 21),
+                          child: _buildAppItem(app, launcher),
+                        ))
+                    .toList(),
+              ),
+            ),
     );
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+}
+
+class BuildGoogleWidget extends StatelessWidget {
+  const BuildGoogleWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        DeviceApps.openApp("com.google.android.googlequicksearchbox");
+      },
+      child: Container(
+        decoration: BoxDecoration(
+            color: Colors.white, borderRadius: BorderRadius.circular(25)),
+        margin: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+        child: Row(
+          children: [
+            SizedBox(
+                width: 30,
+                height: 30,
+                child: Image.asset("assets/google_icon.png")),
+            const SizedBox(
+              width: 10,
+            ),
+            const Spacer(),
+            SizedBox(
+                width: 25,
+                height: 25,
+                child: Image.asset("assets/google_mic.png")),
+            const SizedBox(
+              width: 20,
+            ),
+            SizedBox(
+                //assets\google_mic.png
+                width: 20,
+                height: 20,
+                child: Image.asset("assets/google_lens_icon.png")),
+            const SizedBox(
+              width: 5,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
