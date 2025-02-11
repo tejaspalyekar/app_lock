@@ -14,67 +14,69 @@ class WeatherView extends StatefulWidget {
 }
 
 class _WeatherViewState extends State<WeatherView> {
-  static String key = '908ee85c110f2216ce21db52fcc7f214';
+  static String key = '';
   WeatherModel? weather;
   final WeatherService? service = WeatherService(apikey: key);
-  bool loading = true;
+  bool loading = false;
   String currentTime = '';
   String currentDate = '';
   static const String weatherCacheKey = 'cachedWeather';
   static const String timestampKey = 'weatherTimestamp';
+  String hr = "";
 
   @override
   void initState() {
     super.initState();
-    fetchWeather();
+    // fetchWeather();
     _updateTime();
   }
 
   void _updateTime() {
     if (mounted) {
       setState(() {
-        currentTime = DateFormat('hh:mm a').format(DateTime.now());
+        currentTime = DateFormat('hh:mm').format(DateTime.now());
         currentDate = DateFormat('EEE d, MMM').format(DateTime.now());
+        hr = DateFormat('a').format(DateTime.now());
       });
       Future.delayed(const Duration(minutes: 1), _updateTime);
     }
   }
 
-  Future<void> fetchWeather() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lastFetchedTime = prefs.getInt(timestampKey) ?? 0;
-    final currentTime = DateTime.now().millisecondsSinceEpoch;
+  // Future<void> fetchWeather() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final lastFetchedTime = prefs.getInt(timestampKey) ?? 0;
+  //   final currentTime = DateTime.now().millisecondsSinceEpoch;
 
-    // If cached data is available and not older than 10 hours (36000000 ms)
-    if (lastFetchedTime > 0 && (currentTime - lastFetchedTime) < 36000000) {
-      final cachedWeather = prefs.getString(weatherCacheKey);
-      if (cachedWeather != null) {
-        setState(() {
-          weather = WeatherModel.fromJson(jsonDecode(cachedWeather));
-          loading = false;
-        });
-        return;
-      }
-    }
+  //   // If cached data is available and not older than 10 hours (36000000 ms)
+  //   if (lastFetchedTime > 0 && (currentTime - lastFetchedTime) < 36000000) {
+  //     final cachedWeather = prefs.getString(weatherCacheKey);
+  //     if (cachedWeather != null) {
+  //       setState(() {
+  //         weather = WeatherModel.fromJson(jsonDecode(cachedWeather));
+  //         loading = false;
+  //       });
+  //       return;
+  //     }
+  //   }
 
-    // Fetch new data
-    try {
-      final city = await service?.currentCity();
-      final fetchedWeather = await service?.getWeather(city!);
-      if (fetchedWeather != null) {
-        setState(() {
-          weather = fetchedWeather;
-          loading = false;
-        });
+  //   // Fetch new data
+  //   try {
+  //     final city = await service?.currentCity();
+  //     final fetchedWeather = await service?.getWeather(city!);
+  //     if (fetchedWeather != null) {
+  //       setState(() {
+  //         weather = fetchedWeather;
+  //         loading = false;
+  //       });
 
-        // Save to cache
-        prefs.setString(weatherCacheKey, jsonEncode(fetchedWeather.toJson()));
-        prefs.setInt(timestampKey, currentTime);
-      }
-    } catch (e) {
-      print("Error fetching weather: $e");
-    }
-  }
+  //       // Save to cache
+  //       prefs.setString(weatherCacheKey, jsonEncode(fetchedWeather.toJson()));
+  //       prefs.setInt(timestampKey, currentTime);
+  //     }
+  //   } catch (e) {
+  //     print("Error fetching weather: $e");
+  //   }
+  // }
 
   Widget _buildWeatherIcon() {
     double size = 20;
@@ -136,57 +138,91 @@ class _WeatherViewState extends State<WeatherView> {
               ),
             )
           : Container(
-              width: 180,
-              padding: const EdgeInsets.all(20),
+              width: 155,
+              padding: const EdgeInsets.all(22),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Time and Date Section
-                  Text(
-                    currentTime,
-                    style: const TextStyle(
-                      color: Colors.orange,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      height: 1,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        currentTime,
+                        style: const TextStyle(
+                          color: Color.fromARGB(255, 231, 139, 0),
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          height: 1,
+                        ),
+                      ),
+                      const SizedBox(
+                        width: 5,
+                      ),
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Text(
+                          hr,
+                          style: const TextStyle(
+                            color: Color.fromARGB(255, 231, 139, 0),
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    currentDate,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                      fontSize: 16,
+                  Padding(
+                    padding: const EdgeInsets.only(left: 3),
+                    child: Row(
+                      children: [
+                        Text(
+                          currentDate,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(
+                          width: 5,
+                        ),
+                        const Icon(
+                          Icons.sunny,
+                          color: Colors.yellow,
+                          size: 19,
+                        )
+                      ],
                     ),
                   ),
 
                   // Weather Info Section
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                '${weather?.temp.round()}°',
-                                style: const TextStyle(
-                                  color: Colors.orange,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  height: 1,
-                                ),
-                              ),
-                              _buildWeatherIcon(),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                  // Row(
+                  //   crossAxisAlignment: CrossAxisAlignment.start,
+                  //   children: [
+                  //     Column(
+                  //       crossAxisAlignment: CrossAxisAlignment.start,
+                  //       children: [
+                  //         Row(
+                  //           children: [
+                  //             Text(
+                  //               '${weather?.temp.round()}°',
+                  //               style: const TextStyle(
+                  //                 color: Colors.orange,
+                  //                 fontSize: 16,
+                  //                 fontWeight: FontWeight.bold,
+                  //                 height: 1,
+                  //               ),
+                  //             ),
+                  //             _buildWeatherIcon(),
+                  //           ],
+                  //         ),
+                  //       ],
+                  //     ),
+                  //   ],
+                  // ),
                 ],
               ),
             ),

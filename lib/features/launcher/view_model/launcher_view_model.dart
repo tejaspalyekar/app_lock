@@ -150,25 +150,59 @@ class LauncherViewModel extends ChangeNotifier {
       pages.add(LauncherPage(apps: []));
       LauncherPage currentPage = LauncherPage(apps: []);
 
-      for (var app in apps) {
-        if (currentPage.items.length >= APPS_PER_PAGE) {
-          pages.add(currentPage);
-          currentPage = LauncherPage(apps: []);
+      List<Application> pinnedApps = [];
+      Set<String> pinnedCategories = {};
+
+      // Updated priority order and known package names
+      List<String> pinOrder = ["phone", "message", "whatsapp", "camera"];
+      Map<String, List<String>> categoryMap = {
+        "phone": [
+          "com.google.android.dialer",
+          "com.android.dialer",
+          "com.samsung.android.dialer",
+          "com.samsung.android.incallui",
+          "com.oneplus.dialer",
+          "com.miui.dialer"
+        ],
+        "message": [
+          "com.android.messaging",
+          "com.samsung.android.messaging",
+          "com.google.android.apps.messaging",
+          "com.miui.mms"
+        ],
+        "whatsapp": ["com.whatsapp"],
+        "camera": [
+          "com.android.camera",
+          "com.sec.android.app.camera",
+          "com.oppo.camera",
+          "org.codeaurora.snapcam"
+        ],
+      };
+
+      // Step 1: Find and sort pinned apps in required order
+      for (var category in pinOrder) {
+        for (var app in apps) {
+          if (!pinnedCategories.contains(category) &&
+              categoryMap[category]!.contains(app.packageName)) {
+            pinnedApps.add(app);
+            pinnedCategories.add(category);
+            break; // Move to next category after finding one app
+          }
         }
-        if (app.packageName == "com.android.chrome" ||
-            app.packageName == "com.android.camera" ||
-            app.packageName == "com.sec.android.app.camera" ||
-            app.packageName == "com.oppo.camera" ||
-            app.packageName == "org.codeaurora.snapcam" ||
-            app.packageName == "com.google.android.dialer" ||
-            app.packageName == "com.android.dialer" ||
-            app.packageName == "com.samsung.android.dialer" ||
-            app.packageName == "com.android.messaging" ||
-            app.packageName == "com.samsung.android.messaging" ||
-            app.packageName == "com.google.android.apps.messaging" ||
-            app.packageName == "com.miui.mms") {
-          pinApp(app);
-        } else {
+      }
+
+      // Step 2: Pin the selected apps in order
+      for (var pinnedApp in pinnedApps) {
+        pinApp(pinnedApp);
+      }
+
+      // Step 3: Add remaining apps to pages in A-Z order
+      for (var app in apps) {
+        if (!pinnedApps.contains(app)) {
+          if (currentPage.items.length >= APPS_PER_PAGE) {
+            pages.add(currentPage);
+            currentPage = LauncherPage(apps: []);
+          }
           currentPage.items.add(app);
         }
       }
