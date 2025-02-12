@@ -207,7 +207,7 @@ class _LauncherViewState extends State<LauncherView>
                                     itemBuilder: (context, index) {
                                       final app = launcher.pages[pageIndex]
                                           .items[index] as Application;
-                                      return _buildAppItem(app, launcher);
+                                      return _buildAppItem(app, launcher,false);
                                     },
                                   );
                           },
@@ -227,7 +227,7 @@ class _LauncherViewState extends State<LauncherView>
     );
   }
 
-  Widget _buildAppItem(Application app, LauncherViewModel launcher) {
+  Widget _buildAppItem(Application app, LauncherViewModel launcher, bool isFooter) {
     return GestureDetector(
       onTap: () async {
         if (app.packageName == "com.gallery.app_lock") {
@@ -254,6 +254,7 @@ class _LauncherViewState extends State<LauncherView>
           else
             const Icon(Icons.android, size: 50, color: Colors.white),
           const SizedBox(height: 4),
+          !isFooter?
           SizedBox(
             width: 50,
             child: Text(
@@ -263,7 +264,7 @@ class _LauncherViewState extends State<LauncherView>
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-          ),
+          ):const SizedBox(width: 0,height: 0,),
         ],
       ),
     );
@@ -284,7 +285,7 @@ class _LauncherViewState extends State<LauncherView>
                 children: launcher.pinnedApps!
                     .map((app) => Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 21),
-                          child: _buildAppItem(app, launcher),
+                          child: _buildAppItem(app, launcher,true),
                         ))
                     .toList(),
               ),

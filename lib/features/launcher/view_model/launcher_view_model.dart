@@ -160,7 +160,6 @@ class LauncherViewModel extends ChangeNotifier {
           "com.google.android.dialer",
           "com.android.dialer",
           "com.samsung.android.dialer",
-          "com.samsung.android.incallui",
           "com.oneplus.dialer",
           "com.miui.dialer"
         ],
@@ -203,7 +202,10 @@ class LauncherViewModel extends ChangeNotifier {
             pages.add(currentPage);
             currentPage = LauncherPage(apps: []);
           }
-          currentPage.items.add(app);
+          if(app.packageName != "com.android.traceur"){
+             currentPage.items.add(app);
+          }
+         
         }
       }
 
