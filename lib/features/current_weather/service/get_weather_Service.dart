@@ -5,13 +5,13 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
 class WeatherService {
-  WeatherService({this.apikey});
+  WeatherService();
 
-  String? apikey;
-  String url = 'https://api.openweathermap.org/data/2.5/weather';
+  String url =
+      ' https://newsapi.org/v2/everything?q=keyword&apiKey=6864b7b46ed94c8cbe5ccdda608b7a54';
 
   Future<WeatherModel> getWeather(String city) async {
-    final uri = Uri.parse('$url?q=$city&appid=$apikey');
+    final uri = Uri.parse(url);
     final response = await http.get(uri);
 
     if (response.statusCode == 200) {

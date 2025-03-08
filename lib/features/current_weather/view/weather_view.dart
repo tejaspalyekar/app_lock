@@ -14,9 +14,9 @@ class WeatherView extends StatefulWidget {
 }
 
 class _WeatherViewState extends State<WeatherView> {
-  static String key = '';
+
   WeatherModel? weather;
-  final WeatherService? service = WeatherService(apikey: key);
+  final WeatherService? service = WeatherService();
   bool loading = false;
   String currentTime = '';
   String currentDate = '';

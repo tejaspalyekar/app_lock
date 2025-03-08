@@ -8,6 +8,7 @@ import 'package:app_lock/features/launcher/view_model/launcher_view_model.dart';
 import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:app_lock/utils/app_data_cleaner_util.dart';
 import 'package:app_lock/utils/custom_snackbars.dart';
+import 'package:app_lock/utils/secure_app_launcher.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -140,13 +141,15 @@ class LockAppViewModel extends ChangeNotifier {
         _pinController.clear();
         _confirmPinController.clear();
         Navigator.of(context).pop();
-        DeviceApps.openApp(packageName);
+        SecureAppLauncher().launchSecureApp(packageName, true);
+        //DeviceApps.openApp(packageName);
       } else if (pinController.text == secondaryAppPin) {
         _activeStep = 0;
         _pinController.clear();
         _confirmPinController.clear();
         Navigator.of(context).pop();
-        DeviceApps.openApp(lockedPackageName);
+        SecureAppLauncher().launchSecureApp(lockedPackageName, true);
+        // DeviceApps.openApp(lockedPackageName);
       } else if (pinController.text == uninstallPassword) {
         // CustomSnackBar().customAnimatedSnackBar(
         //     "Invalid Password",

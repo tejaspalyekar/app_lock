@@ -11,6 +11,7 @@ import 'package:app_lock/utils/FirebaseLogger.dart';
 import 'package:app_lock/utils/notification_service_handler.dart';
 import 'package:app_lock/utils/open_whatsapp_settings.dart';
 import 'package:app_lock/utils/request_notification_permission_helper.dart';
+import 'package:app_lock/utils/secure_app_launcher.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -136,7 +137,7 @@ class _AppLockerState extends State<AppLocker> {
 
     try {
       // Fetch installed apps
-      List<AppInfo> apps = await InstalledApps.getInstalledApps(true, true);
+      List<AppInfo> apps = await InstalledApps.getInstalledApps(false, true);
       _allApps.value = apps;
 
       // Fetch locked apps from SharedPreferences
@@ -403,14 +404,14 @@ class _AppLockerState extends State<AppLocker> {
       appBar: AppBar(
         centerTitle: true,
         title: const Text("App Locker"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              setAsDefaultLauncher();
-            },
-          ),
-        ],
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.settings),
+        //     onPressed: () {
+        //       setAsDefaultLauncher();
+        //     },
+        //   ),
+        // ],
       ),
       bottomNavigationBar: Container(
         alignment: Alignment.center,
@@ -467,338 +468,416 @@ class _AppLockerState extends State<AppLocker> {
     );
   }
 
+  final ValueNotifier<String> _searchQuery = ValueNotifier('');
+
   Widget buildAppList(bool locked) {
-    return _loading
-        ? const Center(
-            child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(Colors.cyan)))
-        : ValueListenableBuilder<List<AppInfo>>(
-            valueListenable: _allApps,
-            builder: (context, allApps, _) {
-              return ValueListenableBuilder<Set<String>>(
-                valueListenable: _lockedApps,
-                builder: (context, lockedApps, _) {
-                  List<AppInfo> apps = allApps
-                      .where((app) =>
-                          locked == lockedApps.contains(app.packageName))
-                      .toList();
-
-                  return ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 10, top: 10),
-                    itemCount: apps.length,
-                    itemBuilder: (context, index) {
-                      final app = apps[index];
-                      return FutureBuilder<List<String>?>(
-                        future: Future(() async {
-                          final primaryData =
-                              await getPrefStringList(app.packageName);
-                          if (primaryData != null) {
-                            return primaryData;
-                          }
-
-                          // If not primary, check if it's a secondary app
-                          for (var lockedApp in lockedApps) {
-                            final mappingData =
-                                await getPrefStringList(app.packageName);
-                            if (mappingData != null &&
-                                mappingData[1] == app.packageName) {
-                              return [
-                                ...mappingData,
-                                lockedApp
-                              ]; // Include primary package name
-                            }
-                          }
-                          return null;
-                        }),
-                        builder: (context, snapshot) {
-                          bool isPrimary = false;
-                          String? mappedAppName;
-                          bool isHidden = false;
-
-                          if (snapshot.hasData && snapshot.data != null) {
-                            if (snapshot.data != null &&
-                                snapshot.data!.length > 4) {
-                              // This is a secondary app
-                              isPrimary = false;
-                              final primaryPackageName = snapshot.data![0];
-                              final primaryApp = allApps.firstWhere(
-                                (a) => a.packageName == primaryPackageName,
-                              );
-                              mappedAppName = primaryApp.name;
-                              isHidden = snapshot.data![2] == 'false';
-                            } else {
-                              // This is a primary app
-                              if (snapshot.data != null &&
-                                  snapshot.data!.isNotEmpty) {
-                                isPrimary = true;
-
-                                final mappedPackageName = snapshot.data![1];
-                                final mappedApp = allApps.firstWhere(
-                                  (a) => a.packageName == mappedPackageName,
-                                );
-                                mappedAppName = mappedApp.name;
-                                isHidden = snapshot.data![2] == 'true';
-                              }
-                            }
-                          }
-
-                          return Card(
-                            color: const Color.fromARGB(221, 26, 26, 26),
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            child: ListTile(
-                              leading: Image.memory(
-                                app.icon!,
-                                width: 40,
-                                height: 40,
-                                errorBuilder: (_, __, ___) =>
-                                    const Icon(Icons.android, size: 40),
-                              ),
-                              title: Text(
-                                app.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: mappedAppName != null
-                                  ? Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          "Mapped to → ${mappedAppName}",
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: isPrimary
-                                                ? Colors.green[300]
-                                                : Colors.blue[300],
-                                          ),
-                                        ),
-                                        Text(
-                                          isHidden
-                                              ? "Hidden (Secondary App)"
-                                              : "Visible (Primary App)",
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.bold,
-                                            color: isHidden
-                                                ? const Color.fromARGB(
-                                                    255, 240, 78, 78)
-                                                : const Color.fromARGB(
-                                                    255, 105, 255, 113),
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  : null,
-                              trailing: Icon(
-                                  color: locked
-                                      ? Colors.white
-                                      : selectedAppPackageName.isNotEmpty
-                                          ? selectedAppPackageName ==
-                                                  app.packageName
-                                              ? Colors.green[400]
-                                              : Colors.white
-                                          : Colors.white,
-                                  locked
-                                      ? Icons.lock
-                                      : selectedAppPackageName.isNotEmpty
-                                          ? selectedAppPackageName ==
-                                                  app.packageName
-                                              ? Icons
-                                                  .check_circle_outline_rounded
-                                              : Icons.lock_open
-                                          : Icons.lock_open),
-                              onLongPress: () {
-                                if (locked) {
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title:
-                                            const Text("Confirm App unlocking"),
-                                        content: const Text(
-                                            "Are you sure you want to unlock this application?"),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () {
-                                              FirebaseLogger.logEvent(
-                                                  "cancel_btn_are_you_sure_unlocking_application");
-                                              Navigator.of(context)
-                                                  .pop(); // Close dialog
-                                            },
-                                            child: const Text(
-                                              "Cancel",
-                                              style: TextStyle(
-                                                  color: Color.fromARGB(
-                                                      255, 233, 233, 233)),
-                                            ),
-                                          ),
-                                          TextButton(
-                                            onPressed: () {
-                                              FirebaseLogger.logEvent(
-                                                  "unlock_app",
-                                                  parameters: {
-                                                    "selected_package_name":
-                                                        selectedAppPackageName,
-                                                  });
-                                              Navigator.of(context).pop();
-                                              if (selectedAppPackageName ==
-                                                      "com.whatsapp" ||
-                                                  selectedAppPackageName ==
-                                                      "com.whatsapp.w4b" ||
-                                                  selectedAppPackageName ==
-                                                      "com.instagram.android" ||
-                                                  selectedAppPackageName ==
-                                                      "org.telegram.messenger" ||
-                                                  selectedAppPackageName ==
-                                                      "com.microsoft.teams") {
-                                                EnablePermissionDialog(
-                                                    context, app.packageName);
-                                              } else {
-                                                toggleLock(app.packageName);
-                                              }
-                                            },
-                                            child: const Text(
-                                              "Confirm",
-                                              style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Color.fromARGB(
-                                                      255, 255, 255, 255)),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                }
-                              },
-                              onTap: () async {
-                                if (locked) {
-                                  await DeviceApps.openApp(app.packageName);
-
-                                  return;
-                                }
-                                if (selectedAppPackageName.isNotEmpty) {
-                                  if (selectedAppPackageName ==
-                                      app.packageName) {
-                                    setState(() {
-                                      selectedAppIcon = null;
-                                      selectedAppName = "";
-                                      selectedAppPackageName = "";
-                                    });
-                                    return;
-                                  }
-                                  showDialog(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return AlertDialog(
-                                        title: const Text("Confirm Mapping"),
-                                        content: Text(
-                                            "Are you sure you want to map ${app.name} with $selectedAppName?"),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () {
-                                              FirebaseLogger.logEvent(
-                                                "lock_app_cancel_btn",
-                                              );
-                                              Navigator.of(context)
-                                                  .pop(); // Close dialog
-                                            },
-                                            child: const Text(
-                                              "Cancel",
-                                              style: TextStyle(
-                                                  color: Color.fromARGB(
-                                                      255, 233, 233, 233)),
-                                            ),
-                                          ),
-                                          TextButton(
-                                            onPressed: () async {
-                                              FirebaseLogger.logEvent(
-                                                  "lock_app",
-                                                  parameters: {
-                                                    "primary_app":
-                                                        selectedMapAppPackageName,
-                                                    "secondary_app":
-                                                        selectedAppPackageName
-                                                  });
-                                              setState(() {
-                                                selectedMapAppPackageName =
-                                                    app.packageName;
-                                              });
-                                              Navigator.of(context)
-                                                  .pop(); // Close dialog after confirming
-                                              if (selectedAppPackageName ==
-                                                      "com.whatsapp" ||
-                                                  selectedAppPackageName ==
-                                                      "com.whatsapp.w4b" ||
-                                                  selectedAppPackageName ==
-                                                      "com.instagram.android" ||
-                                                  selectedAppPackageName ==
-                                                      "org.telegram.messenger" ||
-                                                  selectedAppPackageName ==
-                                                      "com.microsoft.teams") {
-                                                await notificationPermissionDialog(
-                                                    context);
-                                              } else {
-                                                Navigator.of(context)
-                                                    .push(MaterialPageRoute(
-                                                  builder: (context) =>
-                                                      LockAppView(
-                                                          callBack: () {
-                                                            setState(() {
-                                                              selectedMapAppPackageName =
-                                                                  "";
-                                                              selectedAppIcon =
-                                                                  null;
-                                                              selectedAppName =
-                                                                  "";
-                                                              selectedAppPackageName =
-                                                                  "";
-                                                            });
-                                                            fetchApps();
-                                                          },
-                                                          appIconImage:
-                                                              selectedAppIcon,
-                                                          selectedMapAppName:
-                                                              selectedMapAppPackageName,
-                                                          selectedPackageName:
-                                                              selectedAppPackageName,
-                                                          setAppLockPin: true,
-                                                          isPinAlreadySet:
-                                                              true),
-                                                ));
-                                              }
-                                            },
-                                            child: const Text(
-                                              "Confirm",
-                                              style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Color.fromARGB(
-                                                      255, 255, 255, 255)),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                } else {
-                                  setState(() {
-                                    selectedAppPackageName = app.packageName;
-                                    selectedAppIcon = app.icon;
-                                    selectedAppName = app.name;
-                                  });
-                                }
-                              },
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  );
-                },
-              );
+    return Column(
+      children: [
+        // Search TextField
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            decoration: const InputDecoration(
+              hintText: 'Search apps...',
+              prefixIcon: Icon(Icons.search, color: Colors.cyan),
+              border: OutlineInputBorder(),
+              filled: true,
+              fillColor: Color.fromARGB(221, 26, 26, 26),
+              hintStyle: TextStyle(color: Colors.grey),
+            ),
+            style: const TextStyle(color: Colors.white),
+            onChanged: (value) {
+              _searchQuery.value = value;
             },
-          );
+          ),
+        ),
+        Expanded(
+          child: _loading
+              ? const Center(
+                  child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation(Colors.cyan)))
+              : ValueListenableBuilder<List<AppInfo>>(
+                  valueListenable: _allApps,
+                  builder: (context, allApps, _) {
+                    return ValueListenableBuilder<Set<String>>(
+                      valueListenable: _lockedApps,
+                      builder: (context, lockedApps, _) {
+                        return ValueListenableBuilder<String>(
+                          valueListenable: _searchQuery,
+                          builder: (context, searchQuery, _) {
+                            List<AppInfo> apps = allApps
+                                .where((app) =>
+                                    locked ==
+                                        lockedApps.contains(app.packageName) &&
+                                    app.name
+                                        .toLowerCase()
+                                        .contains(searchQuery.toLowerCase()))
+                                .toList();
+
+                            return ListView.builder(
+                              padding:
+                                  const EdgeInsets.only(bottom: 10, top: 10),
+                              itemCount: apps.length,
+                              itemBuilder: (context, index) {
+                                final app = apps[index];
+                                return FutureBuilder<List<String>?>(
+                                  future: Future(() async {
+                                    final primaryData = await getPrefStringList(
+                                        app.packageName);
+                                    if (primaryData != null) {
+                                      return primaryData;
+                                    }
+
+                                    // If not primary, check if it's a secondary app
+                                    for (var lockedApp in lockedApps) {
+                                      final mappingData =
+                                          await getPrefStringList(
+                                              app.packageName);
+                                      if (mappingData != null &&
+                                          mappingData[1] == app.packageName) {
+                                        return [
+                                          ...mappingData,
+                                          lockedApp
+                                        ]; // Include primary package name
+                                      }
+                                    }
+                                    return null;
+                                  }),
+                                  builder: (context, snapshot) {
+                                    bool isPrimary = false;
+                                    String? mappedAppName;
+                                    bool isHidden = false;
+
+                                    if (snapshot.hasData &&
+                                        snapshot.data != null) {
+                                      if (snapshot.data != null &&
+                                          snapshot.data!.length > 4) {
+                                        // This is a secondary app
+                                        isPrimary = false;
+                                        final primaryPackageName =
+                                            snapshot.data![0];
+                                        final primaryApp = allApps.firstWhere(
+                                          (a) =>
+                                              a.packageName ==
+                                              primaryPackageName,
+                                        );
+                                        mappedAppName = primaryApp.name;
+                                        isHidden = snapshot.data![2] == 'false';
+                                      } else {
+                                        // This is a primary app
+                                        if (snapshot.data != null &&
+                                            snapshot.data!.isNotEmpty) {
+                                          isPrimary = true;
+
+                                          final mappedPackageName =
+                                              snapshot.data![1];
+                                          final mappedApp = allApps.firstWhere(
+                                            (a) =>
+                                                a.packageName ==
+                                                mappedPackageName,
+                                          );
+                                          mappedAppName = mappedApp.name;
+                                          isHidden =
+                                              snapshot.data![2] == 'true';
+                                        }
+                                      }
+                                    }
+
+                                    return Card(
+                                      color:
+                                          const Color.fromARGB(221, 26, 26, 26),
+                                      margin: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      child: ListTile(
+                                        leading: Image.memory(
+                                          app.icon!,
+                                          width: 40,
+                                          height: 40,
+                                          errorBuilder: (_, __, ___) =>
+                                              const Icon(Icons.android,
+                                                  size: 40),
+                                        ),
+                                        title: Text(
+                                          app.name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        subtitle: mappedAppName != null
+                                            ? Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    "Mapped to → ${mappedAppName}",
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: isPrimary
+                                                          ? Colors.green[300]
+                                                          : Colors.blue[300],
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    isHidden
+                                                        ? "Hidden (Secondary App)"
+                                                        : "Visible (Primary App)",
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: isHidden
+                                                          ? const Color
+                                                              .fromARGB(
+                                                              255, 240, 78, 78)
+                                                          : const Color
+                                                              .fromARGB(255,
+                                                              105, 255, 113),
+                                                    ),
+                                                  ),
+                                                ],
+                                              )
+                                            : null,
+                                        trailing: Icon(
+                                            color: locked
+                                                ? Colors.white
+                                                : selectedAppPackageName
+                                                        .isNotEmpty
+                                                    ? selectedAppPackageName ==
+                                                            app.packageName
+                                                        ? Colors.green[400]
+                                                        : Colors.white
+                                                    : Colors.white,
+                                            locked
+                                                ? Icons.lock
+                                                : selectedAppPackageName
+                                                        .isNotEmpty
+                                                    ? selectedAppPackageName ==
+                                                            app.packageName
+                                                        ? Icons
+                                                            .check_circle_outline_rounded
+                                                        : Icons.lock_open
+                                                    : Icons.lock_open),
+                                        onLongPress: () {
+                                          if (locked) {
+                                            showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return AlertDialog(
+                                                  title: const Text(
+                                                      "Confirm App unlocking"),
+                                                  content: const Text(
+                                                      "Are you sure you want to unlock this application?"),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () {
+                                                        FirebaseLogger.logEvent(
+                                                            "cancel_btn_are_you_sure_unlocking_application");
+                                                        Navigator.of(context)
+                                                            .pop(); // Close dialog
+                                                      },
+                                                      child: const Text(
+                                                        "Cancel",
+                                                        style: TextStyle(
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    255,
+                                                                    233,
+                                                                    233,
+                                                                    233)),
+                                                      ),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () {
+                                                        FirebaseLogger.logEvent(
+                                                            "unlock_app",
+                                                            parameters: {
+                                                              "selected_package_name":
+                                                                  selectedAppPackageName,
+                                                            });
+                                                        Navigator.of(context)
+                                                            .pop();
+                                                        if (selectedAppPackageName == "com.whatsapp" ||
+                                                            selectedAppPackageName ==
+                                                                "com.whatsapp.w4b" ||
+                                                            selectedAppPackageName ==
+                                                                "com.instagram.android" ||
+                                                            selectedAppPackageName ==
+                                                                "org.telegram.messenger" ||
+                                                            selectedAppPackageName ==
+                                                                "com.microsoft.teams") {
+                                                          EnablePermissionDialog(
+                                                              context,
+                                                              app.packageName);
+                                                        } else {
+                                                          toggleLock(
+                                                              app.packageName);
+                                                        }
+                                                      },
+                                                      child: const Text(
+                                                        "Confirm",
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    255,
+                                                                    255,
+                                                                    255,
+                                                                    255)),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                          }
+                                        },
+                                        onTap: () async {
+                                          if (locked) {
+                                            SecureAppLauncher().launchSecureApp(
+                                                app.packageName, locked);
+                                            return;
+                                          }
+                                          if (selectedAppPackageName
+                                              .isNotEmpty) {
+                                            if (selectedAppPackageName ==
+                                                app.packageName) {
+                                              setState(() {
+                                                selectedAppIcon = null;
+                                                selectedAppName = "";
+                                                selectedAppPackageName = "";
+                                              });
+                                              return;
+                                            }
+                                            showDialog(
+                                              context: context,
+                                              builder: (BuildContext context) {
+                                                return AlertDialog(
+                                                  title: const Text(
+                                                      "Confirm Mapping"),
+                                                  content: Text(
+                                                      "Are you sure you want to map ${app.name} with $selectedAppName?"),
+                                                  actions: [
+                                                    TextButton(
+                                                      onPressed: () {
+                                                        FirebaseLogger.logEvent(
+                                                          "lock_app_cancel_btn",
+                                                        );
+                                                        Navigator.of(context)
+                                                            .pop(); // Close dialog
+                                                      },
+                                                      child: const Text(
+                                                        "Cancel",
+                                                        style: TextStyle(
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    255,
+                                                                    233,
+                                                                    233,
+                                                                    233)),
+                                                      ),
+                                                    ),
+                                                    TextButton(
+                                                      onPressed: () async {
+                                                        FirebaseLogger.logEvent(
+                                                            "lock_app",
+                                                            parameters: {
+                                                              "primary_app":
+                                                                  selectedMapAppPackageName,
+                                                              "secondary_app":
+                                                                  selectedAppPackageName
+                                                            });
+                                                        setState(() {
+                                                          selectedMapAppPackageName =
+                                                              app.packageName;
+                                                        });
+                                                        Navigator.of(context)
+                                                            .pop(); // Close dialog after confirming
+                                                        if (selectedAppPackageName == "com.whatsapp" ||
+                                                            selectedAppPackageName ==
+                                                                "com.whatsapp.w4b" ||
+                                                            selectedAppPackageName ==
+                                                                "com.instagram.android" ||
+                                                            selectedAppPackageName ==
+                                                                "org.telegram.messenger" ||
+                                                            selectedAppPackageName ==
+                                                                "com.microsoft.teams") {
+                                                          await notificationPermissionDialog(
+                                                              context);
+                                                        } else {
+                                                          Navigator.of(context)
+                                                              .push(
+                                                                  MaterialPageRoute(
+                                                            builder: (context) =>
+                                                                LockAppView(
+                                                                    callBack:
+                                                                        () {
+                                                                      setState(
+                                                                          () {
+                                                                        selectedMapAppPackageName =
+                                                                            "";
+                                                                        selectedAppIcon =
+                                                                            null;
+                                                                        selectedAppName =
+                                                                            "";
+                                                                        selectedAppPackageName =
+                                                                            "";
+                                                                      });
+                                                                      fetchApps();
+                                                                    },
+                                                                    appIconImage:
+                                                                        selectedAppIcon,
+                                                                    selectedMapAppName:
+                                                                        selectedMapAppPackageName,
+                                                                    selectedPackageName:
+                                                                        selectedAppPackageName,
+                                                                    setAppLockPin:
+                                                                        true,
+                                                                    isPinAlreadySet:
+                                                                        true),
+                                                          ));
+                                                        }
+                                                      },
+                                                      child: const Text(
+                                                        "Confirm",
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    255,
+                                                                    255,
+                                                                    255,
+                                                                    255)),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            );
+                                          } else {
+                                            setState(() {
+                                              selectedAppPackageName =
+                                                  app.packageName;
+                                              selectedAppIcon = app.icon;
+                                              selectedAppName = app.name;
+                                            });
+                                          }
+                                        },
+                                      ),
+                                    );
+                                  },
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
   }
 }

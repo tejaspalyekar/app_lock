@@ -5,6 +5,7 @@ import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/lock_app/views/lock_app_view.dart';
 import 'package:app_lock/utils/FirebaseLogger.dart';
+import 'package:app_lock/utils/secure_app_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -202,10 +203,9 @@ class LauncherViewModel extends ChangeNotifier {
             pages.add(currentPage);
             currentPage = LauncherPage(apps: []);
           }
-          if(app.packageName != "com.android.traceur"){
-             currentPage.items.add(app);
+          if (app.packageName != "com.android.traceur") {
+            currentPage.items.add(app);
           }
-         
         }
       }
 
@@ -357,7 +357,8 @@ class LauncherViewModel extends ChangeNotifier {
             selectedMapAppName: packageName,
             isPinAlreadySet: true,
             callBack: (value) {
-              DeviceApps.openApp(packageName);
+            
+             DeviceApps.openApp(packageName);
             }),
       ));
     } else {

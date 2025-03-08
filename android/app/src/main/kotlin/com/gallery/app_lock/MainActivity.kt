@@ -8,15 +8,17 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import io.flutter.embedding.engine.FlutterEngine
 import android.provider.Settings
+import android.view.WindowManager
 
 class MainActivity: FlutterActivity() {
     private val LAUNCHER_CHANNEL = "app_lock/launcher"
     private val NOTIFICATION_CHANNEL = "app_locker/notifications"
+    private val SECURE_LAUNCH_CHANNEL = "app_lock/secure_launch"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         intent.putExtra("background_mode", FlutterActivityLaunchConfigs.BackgroundMode.transparent.toString())
         super.onCreate(savedInstanceState)
-        // restartNotificationService(context)
+
         // Setup launcher channel
         MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, LAUNCHER_CHANNEL).setMethodCallHandler { call, result ->
             if (call.method == "isDefaultLauncher") {
@@ -25,12 +27,31 @@ class MainActivity: FlutterActivity() {
                 result.notImplemented()
             }
         }
+
+        // Setup secure launch channel
+        MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, SECURE_LAUNCH_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "launchSecureApp" -> {
+                    val packageName = call.argument<String>("packageName")
+                    val isLocked = call.argument<Boolean>("isLocked") ?: false
+                    launchSecureApp(packageName, isLocked)
+                    result.success(null)
+                }
+                "setSecureFlag" -> {
+                    setSecureFlag()
+                    result.success(null)
+                }
+                else -> {
+                    result.notImplemented()
+                }
+            }
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         flutterEngine.plugins.add(DataCleanerPlugin())
- 
+        
         // Setup notification channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, NOTIFICATION_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -49,19 +70,33 @@ class MainActivity: FlutterActivity() {
         }
     }
 
-    // fun restartNotificationService(context: Context) {
-    //     val componentName = ComponentName(context, NotificationService::class.java)
-    //     context.packageManager.setComponentEnabledSetting(
-    //         componentName,
-    //         PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-    //         PackageManager.DONT_KILL_APP
-    //     )
-    //     context.packageManager.setComponentEnabledSetting(
-    //         componentName,
-    //         PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-    //         PackageManager.DONT_KILL_APP
-    //     )
-    // }
+    private fun launchSecureApp(packageName: String?, isLocked: Boolean) {
+        if (packageName == null) return
+
+        val intent = packageManager.getLaunchIntentForPackage(packageName)
+        intent?.apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            
+            if (isLocked) {
+                // Prevent app from appearing in recents
+                addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                // Don't keep in history stack
+                addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+            }
+        }
+        
+        startActivity(intent)
+        
+        if (isLocked) {
+            setSecureFlag()
+        }
+    }
+
+    private fun setSecureFlag() {
+        runOnUiThread {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
 
     private fun requestNotificationAccess() {
         val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)

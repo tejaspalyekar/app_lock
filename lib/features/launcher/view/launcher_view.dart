@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/current_weather/view/weather_view.dart';
@@ -207,7 +205,8 @@ class _LauncherViewState extends State<LauncherView>
                                     itemBuilder: (context, index) {
                                       final app = launcher.pages[pageIndex]
                                           .items[index] as Application;
-                                      return _buildAppItem(app, launcher,false);
+                                      return _buildAppItem(
+                                          app, launcher, false);
                                     },
                                   );
                           },
@@ -227,7 +226,8 @@ class _LauncherViewState extends State<LauncherView>
     );
   }
 
-  Widget _buildAppItem(Application app, LauncherViewModel launcher, bool isFooter) {
+  Widget _buildAppItem(
+      Application app, LauncherViewModel launcher, bool isFooter) {
     return GestureDetector(
       onTap: () async {
         if (app.packageName == "com.gallery.app_lock") {
@@ -254,17 +254,21 @@ class _LauncherViewState extends State<LauncherView>
           else
             const Icon(Icons.android, size: 50, color: Colors.white),
           const SizedBox(height: 4),
-          !isFooter?
-          SizedBox(
-            width: 50,
-            child: Text(
-              app.appName,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ):const SizedBox(width: 0,height: 0,),
+          !isFooter
+              ? SizedBox(
+                  width: 50,
+                  child: Text(
+                    app.appName,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )
+              : const SizedBox(
+                  width: 0,
+                  height: 0,
+                ),
         ],
       ),
     );
@@ -285,7 +289,7 @@ class _LauncherViewState extends State<LauncherView>
                 children: launcher.pinnedApps!
                     .map((app) => Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 21),
-                          child: _buildAppItem(app, launcher,true),
+                          child: _buildAppItem(app, launcher, true),
                         ))
                     .toList(),
               ),
