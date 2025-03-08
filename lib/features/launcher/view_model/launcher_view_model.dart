@@ -5,17 +5,17 @@ import 'package:app_lock/config/constants/app_constants.dart';
 import 'package:app_lock/data/shared_preference/local_data_shared_prefs.dart';
 import 'package:app_lock/features/lock_app/views/lock_app_view.dart';
 import 'package:app_lock/utils/FirebaseLogger.dart';
-import 'package:app_lock/utils/secure_app_launcher.dart';
 import 'package:flutter/material.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LauncherViewModel extends ChangeNotifier {
-  List<LauncherPage> pages = [LauncherPage(apps: [])];
+  List<LauncherPage> pages = [LauncherPage(apps: []), LauncherPage(apps: [])];
   List<Application>? pinnedApps;
-  int currentPage = 0;
   bool loading = false;
   static const int APPS_PER_PAGE = 24;
+  late List<Application> installedApps;
+  List<Application> installedApps1 = [];
 
   // Cache for installed apps
   List<Application>? _cachedApps;
@@ -87,7 +87,7 @@ class LauncherViewModel extends ChangeNotifier {
       loading = true;
 
       final prefs = await SharedPreferences.getInstance();
-      final installedApps = await _getInstalledApps();
+      installedApps = await _getInstalledApps();
 
       List<String> lockedAppList =
           await getPrefStringList(locked_app_list) ?? [];
@@ -105,7 +105,8 @@ class LauncherViewModel extends ChangeNotifier {
             .removeWhere((app) => lockedPackages.contains(app.packageName));
       }
       installedApps.sort((a, b) => a.appName.compareTo(b.appName));
-
+      installedApps1.clear();
+      installedApps1.addAll(installedApps);
       // Load pinned apps
       String? storedPinnedApps = await prefs.getString('pinned_apps');
       if (storedPinnedApps != null) {
@@ -140,14 +141,15 @@ class LauncherViewModel extends ChangeNotifier {
     super.dispose();
   }
 
-  updatePanel(int page) {
-    currentPage = page;
-    notifyListeners();
-  }
+  // updatePanel(int page) {
+  //   currentPage = page;
+  //   notifyListeners();
+  // }
 
   void _organizeAppsIntoPages(List<Application> apps) {
     try {
       pages.clear();
+      pages.add(LauncherPage(apps: []));
       pages.add(LauncherPage(apps: []));
       LauncherPage currentPage = LauncherPage(apps: []);
 
@@ -357,8 +359,7 @@ class LauncherViewModel extends ChangeNotifier {
             selectedMapAppName: packageName,
             isPinAlreadySet: true,
             callBack: (value) {
-            
-             DeviceApps.openApp(packageName);
+              DeviceApps.openApp(packageName);
             }),
       ));
     } else {

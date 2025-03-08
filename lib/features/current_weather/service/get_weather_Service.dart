@@ -7,8 +7,7 @@ import 'package:http/http.dart' as http;
 class WeatherService {
   WeatherService();
 
-  String url =
-      ' https://newsapi.org/v2/everything?q=keyword&apiKey=6864b7b46ed94c8cbe5ccdda608b7a54';
+  String url = ' https://newsapi.org/v2/everything?q=keyword&apiKey=';
 
   Future<WeatherModel> getWeather(String city) async {
     final uri = Uri.parse(url);
