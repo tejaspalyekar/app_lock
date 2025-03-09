@@ -7,7 +7,7 @@ ThemeData appThemeData = ThemeData(
     onPrimary: Colors.white,
     secondary: Colors.white,
     onSecondary: Colors.black,
-    surface: Colors.grey,
+    surface: Color.fromARGB(255, 37, 37, 37),
     onSurface: Colors.white,
   ),
   textTheme: blackWhiteTextTheme,

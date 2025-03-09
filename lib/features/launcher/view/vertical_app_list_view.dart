@@ -6,6 +6,7 @@ import 'package:app_lock/features/launcher/view_model/launcher_index_view_model.
 import 'package:app_lock/features/launcher/view_model/launcher_view_model.dart';
 import 'package:app_lock/features/lock_app/views/lock_app_view.dart';
 import 'package:cached_memory_image/cached_memory_image.dart';
+import 'package:contextmenu/contextmenu.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -177,34 +178,104 @@ class _VerticalAppListState extends State<VerticalAppList> {
           launcher.openAppLockScreen(app.packageName, context);
         }
       },
-      onLongPress: () => _showAppOptions(context, app, launcher),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (app is ApplicationWithIcon)
-            ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: CachedMemoryImage(
-                  uniqueKey: app.icon.toString(),
-                  bytes: app.icon,
-                  width: MediaQuery.of(context).size.width * 0.15,
-                  height: MediaQuery.of(context).size.width * 0.15,
-                  fit: BoxFit.contain,
-                ))
-          else
-            const Icon(Icons.android, size: 50, color: Colors.white),
-          const SizedBox(height: 4),
-          SizedBox(
-            width: MediaQuery.of(context).size.width * 0.5,
-            child: Text(
-              app.appName,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      //  onLongPress: () => _showAppOptions(context, app, launcher),
+      child: ContextMenuArea(
+        width: 170,
+        verticalPadding: 10,
+        builder: (context) => [
+          app.packageName != "com.gallery.app_lock"
+              ? ListTile(
+                  minVerticalPadding: 0,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 5),
+                  leading: const Icon(Icons.error_outline_outlined,
+                      color: Colors.white),
+                  title: const Text('App info',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w600)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    DeviceApps.openAppSettings(app.packageName);
+                  },
+                )
+              : const SizedBox(
+                  height: 0,
+                  width: 0,
+                ),
+          ListTile(
+            minVerticalPadding: 0,
+            contentPadding: EdgeInsets.symmetric(horizontal: 5),
+            leading: const Icon(Icons.push_pin, color: Colors.white),
+            title: Text(
+              launcher.pinnedApps?.contains(app) == true
+                  ? 'Unpin'
+                  : 'Pin to Footer',
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w600),
             ),
+            onTap: () {
+              Navigator.pop(context);
+              if (launcher.pinnedApps?.contains(app) == true) {
+                launcher.unpinApp(app);
+              } else {
+                launcher.pinApp(app);
+              }
+            },
+          ),
+          ListTile(
+            minVerticalPadding: 0,
+            contentPadding: EdgeInsets.symmetric(horizontal: 5),
+            leading: const Icon(Icons.close_rounded, color: Colors.white),
+            title: const Text('Remove',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w600)),
+            onTap: () async {
+              if (app.packageName == "com.gallery.app_lock") {
+                bool pinStatus = await getPrefBool(is_pin_set) ?? false;
+                Navigator.pop(context);
+                Navigator.of(context).push(PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      LockAppView(
+                          uninstallApp: pinStatus,
+                          isPinAlreadySet: pinStatus,
+                          callBack: () {}),
+                ));
+              } else {
+                Navigator.pop(context);
+                if (app.packageName != "com.gallery.app_lock") {
+                  await launcher.uninstallApp(app);
+                }
+              }
+            },
           )
         ],
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (app is ApplicationWithIcon)
+              ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: CachedMemoryImage(
+                    uniqueKey: app.icon.toString(),
+                    bytes: app.icon,
+                    width: MediaQuery.of(context).size.width * 0.15,
+                    height: MediaQuery.of(context).size.width * 0.15,
+                    fit: BoxFit.contain,
+                  ))
+            else
+              const Icon(Icons.android, size: 50, color: Colors.white),
+            const SizedBox(height: 4),
+            SizedBox(
+              width: MediaQuery.of(context).size.width * 0.5,
+              child: Text(
+                app.appName,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            )
+          ],
+        ),
       ),
     );
   }

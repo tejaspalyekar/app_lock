@@ -10,6 +10,7 @@ import 'package:app_lock/features/lock_app/views/lock_app_view.dart';
 import 'package:app_lock/features/news/view/news_view.dart';
 import 'package:app_lock/features/news/view_model/news_view_model.dart';
 import 'package:cached_memory_image/cached_memory_image.dart';
+import 'package:contextmenu/contextmenu.dart';
 import 'package:flutter/material.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:flutter/services.dart';
@@ -103,70 +104,70 @@ class _LauncherViewState extends State<LauncherView>
 
   void _showAppOptions(
       BuildContext context, Application app, LauncherViewModel launcher) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color.fromARGB(160, 44, 44, 44),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Wrap(
-        children: [
-          app.packageName != "com.gallery.app_lock"
-              ? ListTile(
-                  leading: const Icon(Icons.settings, color: Colors.white),
-                  title: const Text('App Settings',
-                      style: TextStyle(color: Colors.white)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    DeviceApps.openAppSettings(app.packageName);
-                  },
-                )
-              : const SizedBox(
-                  height: 0,
-                  width: 0,
-                ),
-          ListTile(
-            leading: const Icon(Icons.push_pin, color: Colors.white),
-            title: Text(
-              launcher.pinnedApps?.contains(app) == true
-                  ? 'Unpin'
-                  : 'Pin to Footer',
-              style: const TextStyle(color: Colors.white),
-            ),
-            onTap: () {
-              Navigator.pop(context);
-              if (launcher.pinnedApps?.contains(app) == true) {
-                launcher.unpinApp(app);
-              } else {
-                launcher.pinApp(app);
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete, color: Colors.red),
-            title: const Text('Uninstall', style: TextStyle(color: Colors.red)),
-            onTap: () async {
-              if (app.packageName == "com.gallery.app_lock") {
-                bool pinStatus = await getPrefBool(is_pin_set) ?? false;
-                Navigator.pop(context);
-                Navigator.of(context).push(PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) =>
-                      LockAppView(
-                          uninstallApp: pinStatus,
-                          isPinAlreadySet: pinStatus,
-                          callBack: () {}),
-                ));
-              } else {
-                Navigator.pop(context);
-                if (app.packageName != "com.gallery.app_lock") {
-                  await launcher.uninstallApp(app);
-                }
-              }
-            },
-          )
-        ],
-      ),
-    );
+    // showModalBottomSheet(
+    //   context: context,
+    //   backgroundColor: const Color.fromARGB(160, 44, 44, 44),
+    //   shape: const RoundedRectangleBorder(
+    //     borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    //   ),
+    //   builder: (context) => Wrap(
+    //     children: [
+    //       app.packageName != "com.gallery.app_lock"
+    //           ? ListTile(
+    //               leading: const Icon(Icons.settings, color: Colors.white),
+    //               title: const Text('App Settings',
+    //                   style: TextStyle(color: Colors.white)),
+    //               onTap: () {
+    //                 Navigator.pop(context);
+    //                 DeviceApps.openAppSettings(app.packageName);
+    //               },
+    //             )
+    //           : const SizedBox(
+    //               height: 0,
+    //               width: 0,
+    //             ),
+    //       ListTile(
+    //         leading: const Icon(Icons.push_pin, color: Colors.white),
+    //         title: Text(
+    //           launcher.pinnedApps?.contains(app) == true
+    //               ? 'Unpin'
+    //               : 'Pin to Footer',
+    //           style: const TextStyle(color: Colors.white),
+    //         ),
+    //         onTap: () {
+    //           Navigator.pop(context);
+    //           if (launcher.pinnedApps?.contains(app) == true) {
+    //             launcher.unpinApp(app);
+    //           } else {
+    //             launcher.pinApp(app);
+    //           }
+    //         },
+    //       ),
+    //       ListTile(
+    //         leading: const Icon(Icons.delete, color: Colors.red),
+    //         title: const Text('Uninstall', style: TextStyle(color: Colors.red)),
+    //         onTap: () async {
+    //           if (app.packageName == "com.gallery.app_lock") {
+    //             bool pinStatus = await getPrefBool(is_pin_set) ?? false;
+    //             Navigator.pop(context);
+    //             Navigator.of(context).push(PageRouteBuilder(
+    //               pageBuilder: (context, animation, secondaryAnimation) =>
+    //                   LockAppView(
+    //                       uninstallApp: pinStatus,
+    //                       isPinAlreadySet: pinStatus,
+    //                       callBack: () {}),
+    //             ));
+    //           } else {
+    //             Navigator.pop(context);
+    //             if (app.packageName != "com.gallery.app_lock") {
+    //               await launcher.uninstallApp(app);
+    //             }
+    //           }
+    //         },
+    //       )
+    //     ],
+    //   ),
+    // );
   }
 
   @override
@@ -203,7 +204,7 @@ class _LauncherViewState extends State<LauncherView>
                           backgroundColor: Colors.transparent,
                           useSafeArea: true,
                           context: context,
-                          builder: (context) => VerticalAppList(),
+                          builder: (context) => const VerticalAppList(),
                         );
                       }
                     },
@@ -295,40 +296,110 @@ class _LauncherViewState extends State<LauncherView>
           launcher.openAppLockScreen(app.packageName, context);
         }
       },
-      onLongPress: () => _showAppOptions(context, app, launcher),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (app is ApplicationWithIcon)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: CachedMemoryImage(
-                uniqueKey: app.icon.toString(),
-                bytes: app.icon,
-                width: MediaQuery.of(context).size.width * 0.15,
-                height: MediaQuery.of(context).size.width * 0.15,
-                fit: BoxFit.contain,
-              ),
-            )
-          else
-            const Icon(Icons.android, size: 50, color: Colors.white),
-          const SizedBox(height: 4),
-          !isFooter
-              ? SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.5,
-                  child: Text(
-                    app.appName,
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+      // onLongPress: () => _showAppOptions(context, app, launcher),
+      child: ContextMenuArea(
+        width: 170,
+        verticalPadding: 10,
+        builder: (context) => [
+          app.packageName != "com.gallery.app_lock"
+              ? ListTile(
+                  minVerticalPadding: 0,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 5),
+                  leading: const Icon(Icons.error_outline_outlined,
+                      color: Colors.white),
+                  title: const Text('App info',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w600)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    DeviceApps.openAppSettings(app.packageName);
+                  },
                 )
               : const SizedBox(
-                  width: 0,
                   height: 0,
+                  width: 0,
                 ),
+          ListTile(
+            minVerticalPadding: 0,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 5),
+            leading: const Icon(Icons.push_pin, color: Colors.white),
+            title: Text(
+              launcher.pinnedApps?.contains(app) == true
+                  ? 'Unpin'
+                  : 'Pin to Footer',
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w600),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              if (launcher.pinnedApps?.contains(app) == true) {
+                launcher.unpinApp(app);
+              } else {
+                launcher.pinApp(app);
+              }
+            },
+          ),
+          ListTile(
+            minVerticalPadding: 0,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 5),
+            leading: const Icon(Icons.close_rounded, color: Colors.white),
+            title: const Text('Remove',
+                style: TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w600)),
+            onTap: () async {
+              if (app.packageName == "com.gallery.app_lock") {
+                bool pinStatus = await getPrefBool(is_pin_set) ?? false;
+                Navigator.pop(context);
+                Navigator.of(context).push(PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      LockAppView(
+                          uninstallApp: pinStatus,
+                          isPinAlreadySet: pinStatus,
+                          callBack: () {}),
+                ));
+              } else {
+                Navigator.pop(context);
+                if (app.packageName != "com.gallery.app_lock") {
+                  await launcher.uninstallApp(app);
+                }
+              }
+            },
+          )
         ],
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (app is ApplicationWithIcon)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: CachedMemoryImage(
+                  uniqueKey: app.icon.toString(),
+                  bytes: app.icon,
+                  width: MediaQuery.of(context).size.width * 0.15,
+                  height: MediaQuery.of(context).size.width * 0.15,
+                  fit: BoxFit.contain,
+                ),
+              )
+            else
+              const Icon(Icons.android, size: 50, color: Colors.white),
+            const SizedBox(height: 4),
+            !isFooter
+                ? SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.5,
+                    child: Text(
+                      app.appName,
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )
+                : const SizedBox(
+                    width: 0,
+                    height: 0,
+                  ),
+          ],
+        ),
       ),
     );
   }
@@ -343,22 +414,41 @@ class _LauncherViewState extends State<LauncherView>
               color: Colors.transparent,
               child: launcher.pinnedApps == null || launcher.pinnedApps!.isEmpty
                   ? const SizedBox() // Hide if no apps are pinned
-                  : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        mainAxisSize:
-                            MainAxisSize.min, // Center items in the Row
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: launcher.pinnedApps!
-                            .map((app) => Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 21),
-                                  child: _buildAppItem(app, launcher, true),
-                                ))
-                            .toList(),
+                  : GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        childAspectRatio: 0.8,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
                       ),
-                    ),
-            ),
+                      itemCount: launcher.pinnedApps == null
+                          ? 0
+                          : launcher.pinnedApps!.length,
+                      itemBuilder: (context, index) {
+                        final app = launcher.pinnedApps![index];
+                        return _buildAppItem(app, launcher, true);
+                      },
+                    )
+              // : SingleChildScrollView(
+              //     scrollDirection: Axis.horizontal,
+              //     child: Row(
+              //       mainAxisSize:
+              //           MainAxisSize.min, // Center items in the Row
+              //       mainAxisAlignment: MainAxisAlignment.center,
+              //       children: launcher.pinnedApps!
+              //           .map((app) => Padding(
+              //                 padding: const EdgeInsets.symmetric(
+              //                     horizontal: 21),
+              //                 child: _buildAppItem(app, launcher, true),
+              //               ))
+              //           .toList(),
+              //     ),
+              //   ),
+              ),
     );
   }
 
