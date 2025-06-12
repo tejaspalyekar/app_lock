@@ -1,5 +1,6 @@
 import 'package:app_lock/features/dashboard/view_models/gallery_view_model.dart';
 import 'package:app_lock/features/dashboard/views/settings_view.dart';
+import 'package:cached_memory_image/cached_memory_image.dart';
 import 'package:flutter/material.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:provider/provider.dart';
@@ -93,8 +94,9 @@ class GalleryView extends StatelessWidget {
                 return const Icon(Icons.error_outline);
               }
               if (snapshot.hasData) {
-                return Image.memory(
-                  snapshot.data!,
+                return CachedMemoryImage(
+                  uniqueKey: snapshot.data!.icon.toString(),
+                  bytes: snapshot.data!,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) =>
                       const Icon(Icons.image_not_supported),

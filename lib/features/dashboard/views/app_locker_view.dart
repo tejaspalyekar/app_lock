@@ -12,6 +12,7 @@ import 'package:app_lock/utils/notification_service_handler.dart';
 import 'package:app_lock/utils/open_whatsapp_settings.dart';
 import 'package:app_lock/utils/request_notification_permission_helper.dart';
 import 'package:app_lock/utils/secure_app_launcher.dart';
+import 'package:cached_memory_image/cached_memory_image.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -47,12 +48,20 @@ class _AppLockerState extends State<AppLocker> {
 
   askForRistrictedPermissions() async {
     FirebaseLogger.logEvent("ask_for_restricted_permissions");
-    const platform = MethodChannel('app_locker/notifications');
-    final bool hasPermission =
-        await platform.invokeMethod('checkNotificationPermission');
-    if (!hasPermission) {
-      _checkPermissions();
-      requestNotificationPermissions(context);
+    try {
+      const platform = MethodChannel('app_locker/notifications');
+      final bool hasPermission =
+          await platform.invokeMethod('checkNotificationPermission');
+      if (!hasPermission) {
+        _checkPermissions();
+        requestNotificationPermissions(context);
+      }
+    } catch (e) {
+      log(e.toString());
+      FirebaseLogger.logEvent("ask_for_restricted_permissions error",
+          parameters: {
+            'error': e.toString(),
+          });
     }
   }
 
@@ -589,10 +598,12 @@ class _AppLockerState extends State<AppLocker> {
                                       margin: const EdgeInsets.symmetric(
                                           horizontal: 8, vertical: 4),
                                       child: ListTile(
-                                        leading: Image.memory(
-                                          app.icon!,
+                                        leading: CachedMemoryImage(
+                                          uniqueKey: app.icon.toString(),
+                                          bytes: app.icon!,
                                           width: 40,
                                           height: 40,
+                                          fit: BoxFit.contain,
                                           errorBuilder: (_, __, ___) =>
                                               const Icon(Icons.android,
                                                   size: 40),
