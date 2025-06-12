@@ -48,12 +48,20 @@ class _AppLockerState extends State<AppLocker> {
 
   askForRistrictedPermissions() async {
     FirebaseLogger.logEvent("ask_for_restricted_permissions");
-    const platform = MethodChannel('app_locker/notifications');
-    final bool hasPermission =
-        await platform.invokeMethod('checkNotificationPermission');
-    if (!hasPermission) {
-      _checkPermissions();
-      requestNotificationPermissions(context);
+    try {
+      const platform = MethodChannel('app_locker/notifications');
+      final bool hasPermission =
+          await platform.invokeMethod('checkNotificationPermission');
+      if (!hasPermission) {
+        _checkPermissions();
+        requestNotificationPermissions(context);
+      }
+    } catch (e) {
+      log(e.toString());
+      FirebaseLogger.logEvent("ask_for_restricted_permissions error",
+          parameters: {
+            'error': e.toString(),
+          });
     }
   }
 
