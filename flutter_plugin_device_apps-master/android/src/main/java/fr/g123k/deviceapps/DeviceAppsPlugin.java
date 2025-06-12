@@ -6,6 +6,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
@@ -17,6 +18,7 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -250,28 +252,63 @@ public class DeviceAppsPlugin implements
                                            ApplicationInfo applicationInfo,
                                            boolean includeAppIcon) {
         Map<String, Object> map = new HashMap<>();
-        map.put(AppDataConstants.APP_NAME, pInfo.applicationInfo.loadLabel(packageManager).toString());
-        map.put(AppDataConstants.APK_FILE_PATH, applicationInfo.sourceDir);
-        map.put(AppDataConstants.PACKAGE_NAME, pInfo.packageName);
-        map.put(AppDataConstants.VERSION_CODE, pInfo.versionCode);
-        map.put(AppDataConstants.VERSION_NAME, pInfo.versionName);
-        map.put(AppDataConstants.DATA_DIR, applicationInfo.dataDir);
-        map.put(AppDataConstants.SYSTEM_APP, isSystemApp(pInfo));
-        map.put(AppDataConstants.INSTALL_TIME, pInfo.firstInstallTime);
-        map.put(AppDataConstants.UPDATE_TIME, pInfo.lastUpdateTime);
-        map.put(AppDataConstants.IS_ENABLED, applicationInfo.enabled);
+        try {
+            map.put(AppDataConstants.APP_NAME, pInfo.applicationInfo.loadLabel(packageManager).toString());
+            map.put(AppDataConstants.APK_FILE_PATH, applicationInfo.sourceDir);
+            map.put(AppDataConstants.PACKAGE_NAME, pInfo.packageName);
+            map.put(AppDataConstants.VERSION_CODE, pInfo.versionCode);
+            map.put(AppDataConstants.VERSION_NAME, pInfo.versionName);
+            map.put(AppDataConstants.DATA_DIR, applicationInfo.dataDir);
+            map.put(AppDataConstants.SYSTEM_APP, isSystemApp(pInfo));
+            map.put(AppDataConstants.INSTALL_TIME, pInfo.firstInstallTime);
+            map.put(AppDataConstants.UPDATE_TIME, pInfo.lastUpdateTime);
+            map.put(AppDataConstants.IS_ENABLED, applicationInfo.enabled);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            map.put(AppDataConstants.CATEGORY, pInfo.applicationInfo.category);
-        }
-
-        if (includeAppIcon) {
-            try {
-                Drawable icon = packageManager.getApplicationIcon(pInfo.packageName);
-                String encodedImage = encodeToBase64(getBitmapFromDrawable(icon), Bitmap.CompressFormat.PNG, 100);
-                map.put(AppDataConstants.APP_ICON, encodedImage);
-            } catch (PackageManager.NameNotFoundException ignored) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                int category = pInfo.applicationInfo.category;
+                map.put(AppDataConstants.CATEGORY, category >= 0 ? category : -1);
+            } else {
+                map.put(AppDataConstants.CATEGORY, -1);
             }
+
+            if (includeAppIcon) {
+                try {
+                    Drawable icon = applicationInfo.loadIcon(packageManager);
+                    if (icon != null) {
+                        Bitmap bitmap = getBitmapFromDrawable(icon);
+                        if (bitmap != null) {
+                            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
+                            byte[] byteArray = byteArrayOutputStream.toByteArray();
+                            map.put(AppDataConstants.APP_ICON, encodeToBase64(bitmap, Bitmap.CompressFormat.PNG, 100));
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(LOG_TAG, "Error loading icon for " + pInfo.packageName + ": " + e.getMessage());
+                    // Try alternative method to get icon
+                    try {
+                        Drawable icon = packageManager.getApplicationIcon(pInfo.packageName);
+                        if (icon != null) {
+                            Bitmap bitmap = getBitmapFromDrawable(icon);
+                            if (bitmap != null) {
+                                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                                bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream);
+                                byte[] byteArray = byteArrayOutputStream.toByteArray();
+                                map.put(AppDataConstants.APP_ICON, encodeToBase64(bitmap, Bitmap.CompressFormat.PNG, 100));
+                            }
+                        }
+                    } catch (Exception e2) {
+                        Log.e(LOG_TAG, "Error loading icon (alternative method) for " + pInfo.packageName + ": " + e2.getMessage());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e(LOG_TAG, "Error getting app data for " + pInfo.packageName + ": " + e.getMessage());
+            // Add basic info even if there's an error
+            map.put(AppDataConstants.APP_NAME, pInfo.packageName);
+            map.put(AppDataConstants.PACKAGE_NAME, pInfo.packageName);
+            map.put(AppDataConstants.SYSTEM_APP, isSystemApp(pInfo));
+            map.put(AppDataConstants.IS_ENABLED, true);
         }
 
         return map;
@@ -337,7 +374,6 @@ public class DeviceAppsPlugin implements
     Map<String, Object> getListenerData(String packageName, String event) {
         Map<String, Object> data = getApp(packageName, false);
 
-        // The app is not installed
         if (data == null) {
             data = new HashMap<>(2);
             data.put(AppDataEventConstants.PACKAGE_NAME, packageName);

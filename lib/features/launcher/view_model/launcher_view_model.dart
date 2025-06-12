@@ -69,15 +69,35 @@ class LauncherViewModel extends ChangeNotifier {
       return _cachedApps!;
     }
 
-    final apps = await DeviceApps.getInstalledApplications(
-      includeAppIcons: true,
-      includeSystemApps: true,
-      onlyAppsWithLaunchIntent: true,
-    );
+    try {
+      final apps = await DeviceApps.getInstalledApplications(
+        includeAppIcons: true,
+        includeSystemApps: true,
+        onlyAppsWithLaunchIntent: true,
+      );
 
-    _cachedApps = apps;
-    _lastLoadTime = DateTime.now();
-    return apps;
+      // Filter out any apps that might cause issues
+      final filteredApps = apps.where((app) {
+        try {
+          // Try accessing properties that might be null
+          final hasValidName = app.appName.isNotEmpty;
+          final hasValidPackage = app.packageName.isNotEmpty;
+          return hasValidName && hasValidPackage;
+        } catch (e) {
+          log('Error filtering app: ${e.toString()}');
+          return false;
+        }
+      }).toList();
+
+      _cachedApps = filteredApps;
+      _lastLoadTime = DateTime.now();
+      return filteredApps;
+    } catch (e) {
+      log('Error getting installed apps: ${e.toString()}');
+      FirebaseLogger.logEvent("get_installed_apps_error",
+          parameters: {"error": e.toString()});
+      return [];
+    }
   }
 
   Future<void> loadApps(

@@ -42,7 +42,11 @@ class DeviceApps {
         for (final Object app in apps) {
           if (app is Map) {
             try {
-              list.add(Application._(app));
+              if (includeAppIcons && app.containsKey('app_icon')) {
+                list.add(ApplicationWithIcon._fromMap(app));
+              } else {
+                list.add(Application._(app));
+              }
             } catch (e, trace) {
               if (e is AssertionError) {
                 debugPrint(
@@ -81,7 +85,11 @@ class DeviceApps {
       });
 
       if (app != null && app is Map<dynamic, dynamic>) {
-        return Application._(app);
+        if (includeAppIcon && app.containsKey('app_icon')) {
+          return ApplicationWithIcon._fromMap(app);
+        } else {
+          return Application._(app);
+        }
       } else {
         return null;
       }
@@ -252,8 +260,8 @@ class Application extends _BaseApplication {
         systemApp = map['system_app'] as bool,
         installTimeMillis = map['install_time'] as int,
         updateTimeMillis = map['update_time'] as int,
-        enabled = map['enabled'] as bool,
-        category = ApplicationCategory.values[map['category'] as int],
+        enabled = map['enabled'] as bool? ?? true,
+        category = _parseCategory(map['category']),
         super._fromMap(map);
 
   // Add this named constructor for ApplicationWithIcon
@@ -263,25 +271,18 @@ class Application extends _BaseApplication {
   /// [https://developer.android.com/reference/kotlin/android/content/pm/ApplicationInfo]
   /// [category] is null on Android < 26
   static ApplicationCategory _parseCategory(Object? category) {
-    if (category is num && category < 0) {
+    if (category == null) {
       return ApplicationCategory.undefined;
-    } else if (category == 0) {
-      return ApplicationCategory.game;
-    } else if (category == 1) {
-      return ApplicationCategory.audio;
-    } else if (category == 2) {
-      return ApplicationCategory.video;
-    } else if (category == 3) {
-      return ApplicationCategory.image;
-    } else if (category == 4) {
-      return ApplicationCategory.social;
-    } else if (category == 5) {
-      return ApplicationCategory.news;
-    } else if (category == 6) {
-      return ApplicationCategory.maps;
-    } else if (category == 7) {
-      return ApplicationCategory.productivity;
-    } else {
+    }
+
+    try {
+      final int categoryIndex = category as int;
+      if (categoryIndex < 0 ||
+          categoryIndex >= ApplicationCategory.values.length) {
+        return ApplicationCategory.undefined;
+      }
+      return ApplicationCategory.values[categoryIndex];
+    } catch (e) {
       return ApplicationCategory.undefined;
     }
   }
