@@ -147,6 +147,19 @@ class _AppLockerState extends State<AppLocker> {
     try {
       // Fetch installed apps
       List<AppInfo> apps = await InstalledApps.getInstalledApps(false, true);
+
+      // Filter out any apps that failed to load properly
+      apps = apps.where((app) {
+        try {
+          return app.name.isNotEmpty && app.packageName.isNotEmpty;
+        } catch (e) {
+          FirebaseLogger.logEvent('app_load_error', parameters: {
+            'error': e.toString(),
+          });
+          return false;
+        }
+      }).toList();
+
       _allApps.value = apps;
 
       // Fetch locked apps from SharedPreferences
@@ -158,7 +171,13 @@ class _AppLockerState extends State<AppLocker> {
       _lockedApps.value =
           lockedAppsList.toSet(); // Convert List to Set for quick lookup
     } catch (e) {
+      FirebaseLogger.logEvent('fetch_apps_error', parameters: {
+        'error': e.toString(),
+      });
       debugPrint("Error fetching apps: $e");
+      // Set empty lists instead of crashing
+      _allApps.value = [];
+      _lockedApps.value = {};
     }
 
     setState(() => _loading = false);
